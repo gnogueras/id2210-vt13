@@ -39,6 +39,7 @@ import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.Version;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.sics.kompics.Component;
 
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
@@ -51,6 +52,10 @@ import se.sics.kompics.timer.Timer;
 import se.sics.kompics.web.Web;
 import se.sics.kompics.web.WebRequest;
 import se.sics.kompics.web.WebResponse;
+import search.bully.Bully;
+import search.bully.BullyInit;
+import search.bully.BullyPort;
+import search.bully.SelectNewLeader;
 import search.system.peer.AddIndexText;
 import search.system.peer.IndexPort;
 import tman.system.peer.tman.TManSample;
@@ -70,7 +75,7 @@ public final class Search extends ComponentDefinition {
     Negative<Web> webPort = negative(Web.class);
     Positive<CyclonSamplePort> cyclonSamplePort = positive(CyclonSamplePort.class);
     Positive<TManSamplePort> tmanPort = positive(TManSamplePort.class);
-    
+    Positive<BullyPort> bullyPort = positive(BullyPort.class);
     ArrayList<Address> neighbours = new ArrayList<Address>();
     private Address self;
     private double num;
@@ -121,22 +126,21 @@ public final class Search extends ComponentDefinition {
             SchedulePeriodicTimeout rst = new SchedulePeriodicTimeout(period, period);
             rst.setTimeoutEvent(new UpdateIndexTimeout(rst));
             trigger(rst, timerPort);
-            
+
             // TODO super ugly workaround...
- 			IndexWriter writer;
- 			try {
- 				writer = new IndexWriter(index, config);
- 				writer.commit();
- 				writer.close();
- 			} catch (IOException e) {
- 				// TODO Auto-generated catch block
- 				e.printStackTrace();
- 			}
+            IndexWriter writer;
+            try {
+                writer = new IndexWriter(index, config);
+                writer.commit();
+                writer.close();
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
 
             Snapshot.updateNum(self, num);
         }
     };
-    
     Handler<WebRequest> handleWebRequest = new Handler<WebRequest>() {
         @Override
         public void handle(WebRequest event) {
@@ -251,11 +255,12 @@ public final class Search extends ComponentDefinition {
     Handler<UpdateIndexTimeout> handleUpdateIndexTimeout = new Handler<UpdateIndexTimeout>() {
         @Override
         public void handle(UpdateIndexTimeout event) {
-
+            //System.out.println("*****HANDLE UPDATE INDEX TIMEOUT*****");
             // pick a random neighbour to ask for index updates from. 
             // You can change this policy if you want to.
             // Maybe a gradient neighbour who is closer to the leader?
             if (neighbours.isEmpty()) {
+                logger.info(self.getId() + "*****HANDLE UPDATE INDEX TIMEOUT: Neighbours empty*****");
                 return;
             }
             Address dest = neighbours.get(random.nextInt(neighbours.size()));
@@ -267,6 +272,13 @@ public final class Search extends ComponentDefinition {
             // Send a MissingIndexEntries.Request for the missing index entries to dest
             MissingIndexEntries.Request req = new MissingIndexEntries.Request(self, dest,
                     missingIndexEntries);
+
+            logger.info(self.getId()
+                    + " - REQUEST: Ranges of entries requested: ");
+            for (Range r : missingIndexEntries) {
+                logger.info(self.getId() + "        [{},{}]", r.getLower(), r.getUpper());
+            }
+
             trigger(req, networkPort);
         }
     };
@@ -279,17 +291,17 @@ public final class Search extends ComponentDefinition {
         // so that it doesn't consume too much memory.
         int hitsPerPage = max - min > 0 ? max - min : 1;
         Query query = NumericRangeQuery.newIntRange("id", min, max, true, true);
-		TopDocs topDocs = searcher.search(query, hitsPerPage, new Sort(new SortField("id", Type.INT)));
+        TopDocs topDocs = searcher.search(query, hitsPerPage, new Sort(new SortField("id", Type.INT)));
         return topDocs.scoreDocs;
     }
-    
+
     List<Range> getMissingRanges() {
         List<Range> res = new ArrayList<Range>();
         IndexReader reader = null;
-    	IndexSearcher searcher = null;
+        IndexSearcher searcher = null;
         try {
-        	reader = DirectoryReader.open(index);
-        	searcher = new IndexSearcher(reader);
+            reader = DirectoryReader.open(index);
+            searcher = new IndexSearcher(reader);
             ScoreDoc[] hits = getExistingDocsInRange(lastMissingIndexEntry, maxIndexEntry,
                     reader, searcher);
             if (hits != null) {
@@ -319,8 +331,8 @@ public final class Search extends ComponentDefinition {
                     }
                 }
                 // Add all entries > maxIndexEntry as a range of interest.
-                res.add(new Range(maxIndexEntry+1, Integer.MAX_VALUE));
-                
+                res.add(new Range(maxIndexEntry + 1, Integer.MAX_VALUE));
+
             }
         } catch (IOException ex) {
             java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
@@ -332,10 +344,7 @@ public final class Search extends ComponentDefinition {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
-
         }
-
-
         return res;
     }
 
@@ -344,8 +353,8 @@ public final class Search extends ComponentDefinition {
         IndexSearcher searcher = null;
         IndexReader reader = null;
         try {
-        	reader = DirectoryReader.open(index);
-        	searcher = new IndexSearcher(reader);
+            reader = DirectoryReader.open(index);
+            searcher = new IndexSearcher(reader);
             ScoreDoc[] hits = getExistingDocsInRange(range.getLower(),
                     range.getUpper(), reader, searcher);
             if (hits != null) {
@@ -355,8 +364,13 @@ public final class Search extends ComponentDefinition {
                     try {
                         d = searcher.doc(docId);
                         int indexId = Integer.parseInt(d.get("id"));
-                        String text = d.get("text");
-                        res.add(new IndexEntry(indexId, text));
+                        //String text = d.get("text");
+                        String title = d.get("title");
+
+                        /*logger.info(self.getId()
+                                + " - GET MISSING ENTRIES: Adding index entry to the buffer. title={} Id={} ", title, indexId);*/
+
+                        res.add(new IndexEntry(indexId, title));
                     } catch (IOException ex) {
                         java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                     }
@@ -372,14 +386,12 @@ public final class Search extends ComponentDefinition {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
-
         }
-
         return res;
     }
 
     /**
-     * Called by null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
+     * Called by null null null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
      * handleMissingIndexEntriesRequest}
      *
      * @return List of IndexEntries at this node great than max
@@ -398,11 +410,12 @@ public final class Search extends ComponentDefinition {
                     int docId = hits[i].doc;
                     Document d;
                     try {
-                    	reader = DirectoryReader.open(index);
-                    	searcher = new IndexSearcher(reader);
+                        reader = DirectoryReader.open(index);
+                        searcher = new IndexSearcher(reader);
                         d = searcher.doc(docId);
                         int indexId = Integer.parseInt(d.get("id"));
-                        String text = d.get("text");
+                        //String text = d.get("text");
+                        String text = d.get("title");
                         res.add(new IndexEntry(indexId, text));
                     } catch (IOException ex) {
                         java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
@@ -419,11 +432,9 @@ public final class Search extends ComponentDefinition {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
-
         }
         return res;
     }
-
     Handler<MissingIndexEntries.Request> handleMissingIndexEntriesRequest = new Handler<MissingIndexEntries.Request>() {
         @Override
         public void handle(MissingIndexEntries.Request event) {
@@ -432,23 +443,77 @@ public final class Search extends ComponentDefinition {
             for (Range r : event.getMissingRanges()) {
                 res.addAll(getMissingIndexEntries(r));
             }
-            
+
+            /*if(res.isEmpty()){
+             return;
+             }*/
+
             // TODO send missing index entries back to requester
+            MissingIndexEntries.Response response = new MissingIndexEntries.Response(self, event.getSource(), res);
+            logger.info(self.getId()
+                    + " - SEND RESPONSE with {} entries to peer:{}", res.size(), event.getSource().getId());
+            for(IndexEntry e : res){
+                logger.info(self.getId()
+                    + "          Id:{}   {}", e.getIndexId(), e.getText());
+            }
+            trigger(response, networkPort);
+
         }
     };
     Handler<MissingIndexEntries.Response> handleMissingIndexEntriesResponse = new Handler<MissingIndexEntries.Response>() {
         @Override
         public void handle(MissingIndexEntries.Response event) {
-            // TODO merge the missing index entries in your lucene index 
+            // TODO merge the missing index entries in your lucene index
+            List<IndexEntry> entries = event.getEntries();
+
+            if (entries.isEmpty()) {
+                logger.info(self.getId()
+                        + " - RESPONSE. Number of entries received {}", entries.size());
+                return;
+            }
+
+            logger.info(self.getId()
+                        + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
+            for (IndexEntry e : entries) {
+                /*logger.info(self.getId()
+                        + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
+                updateIndexPointers(e.getIndexId());
+                logger.info(self.getId()
+                        + " - RESPONSE. Adding index entry: {} Id={}", e.getText(), e.getIndexId());
+                /*logger.info(self.getId()
+                        + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
+
+                try {
+                    addEntry(e.getText(), e.getIndexId());
+                } catch (IOException ex) {
+                    java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
+                    throw new IllegalArgumentException(ex.getMessage());
+                }
+            }
+            
+           
+            int newLastMissingEntry = nextMissingIndexEntry();
+            logger.info(self.getId()
+                        + " - UPDATE POINTERS. lastMissingIndexEntry:{}   nextMissingIndexEntry:{}", lastMissingIndexEntry, newLastMissingEntry);
+            lastMissingIndexEntry = newLastMissingEntry;
+            logger.info(self.getId()
+                    + " - RESPONSE. {} entries added to my index from Response of peer:{}", entries.size(), event.getSource().getId());
         }
     };
-
     Handler<CyclonSample> handleCyclonSample = new Handler<CyclonSample>() {
         @Override
         public void handle(CyclonSample event) {
             // receive a new list of neighbours
             neighbours.clear();
             neighbours.addAll(event.getSample());
+
+            /*System.out.println("\nCYCLON SAMPE: numPartitions=" + searchConfiguration.getNumPartitions());
+            System.out.print("Self=" + self.getId() + " CyclonPartners={");
+            for (Address partner : neighbours) {
+                System.out.print(partner.getId() + ",");
+            }
+            System.out.println("}");*/
+
 
             // update routing tables
             for (Address p : neighbours) {
@@ -485,20 +550,97 @@ public final class Search extends ComponentDefinition {
             }
         }
     };
-
     Handler<TManSample> handleTManSample = new Handler<TManSample>() {
         @Override
         public void handle(TManSample event) {
+            // receive a new list of neighbours
+            List<Address> sampleNodes = event.getSample();
 
+            if (sampleNodes.size() > 0) {
+                logger.info("Search component {} received {} samples from TMan.",
+                        self.getId(), sampleNodes.size());
+            }
+
+            //PeerAddress selfPeerAddress = new PeerAddress(self.getPeerAddress(), self.getPeerId());
+            /*
+             Component bully = create(Bully.class);
+             logger.info("initializing bully with {} nodes and self peer address {}.",
+             sampleNodes, self);
+            
+             BullyInit bullyinit = new BullyInit(sampleNodes, self);
+             trigger(bullyinit, bully.control());
+             int instance = self.getId();
+             trigger(new SelectNewLeader(self, instance), bullyPort);
+             */
         }
     };
-    
+
     private void updateIndexPointers(int id) {
+        /*if (id == lastMissingIndexEntry) {
+            //Find next lastMissingIndexEntry. The first entry that is missing
+            logger.info(self.getId()
+                        + " - UPDATE POINTERS. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
+            int newLastMissingEntry = nextMissingIndexEntry();
+            logger.info(self.getId()
+                        + " - UPDATE POINTERS. id:{}   newLastMissingEntry:{}", id, newLastMissingEntry);
+                
+            
+        }*/
+        if(id == lastMissingIndexEntry){
+            lastMissingIndexEntry = nextMissingIndexEntry();
+        }
         if (id == lastMissingIndexEntry + 1) {
             lastMissingIndexEntry++;
         }
         if (id > maxIndexEntry) {
             maxIndexEntry = id;
         }
+    }
+
+    private int nextMissingIndexEntry() {
+        IndexReader reader = null;
+        IndexSearcher searcher = null;
+        try {
+            reader = DirectoryReader.open(index);
+            searcher = new IndexSearcher(reader);
+            ScoreDoc[] hits = getExistingDocsInRange(lastMissingIndexEntry, maxIndexEntry,
+                    reader, searcher);
+            if (hits != null) {
+                int startRange = lastMissingIndexEntry;
+                // This should terminate by finding the last entry at position maxIndexValue
+                for (int id = lastMissingIndexEntry+1; id <= maxIndexEntry; id++) {
+                    // We can skip the for-loop if the hits are returned in order, with lowest id first
+                    boolean found = false;
+                    for (int i = 0; i < hits.length; ++i) {
+                        int docId = hits[i].doc;
+                        Document d;
+                        try {
+                            d = searcher.doc(docId);
+                            int indexId = Integer.parseInt(d.get("id"));
+                            if (id == indexId) {
+                                found = true;
+                            }
+                        } catch (IOException ex) {
+                            java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                    }
+                    if (!found) {
+                        return id;
+                    }
+                }
+            }
+
+        } catch (IOException ex) {
+            java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException ex) {
+                    java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+        }
+        return maxIndexEntry + 1;
     }
 }

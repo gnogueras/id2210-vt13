@@ -23,6 +23,7 @@ import search.simulator.snapshot.Snapshot;
 import common.configuration.SearchConfiguration;
 import common.configuration.Configuration;
 import common.configuration.CyclonConfiguration;
+import common.configuration.TManConfiguration;
 import common.simulation.AddIndexEntry;
 import common.simulation.ConsistentHashtable;
 import common.simulation.GenerateReport;
@@ -49,18 +50,17 @@ public final class SearchSimulator extends ComponentDefinition {
     private final HashMap<Long, Address> peersAddress;
     private BootstrapConfiguration bootstrapConfiguration;
     private CyclonConfiguration cyclonConfiguration;
+    private TManConfiguration tmanConfiguration;
     private SearchConfiguration searchConfiguration;
     private Long identifierSpaceSize;
     private ConsistentHashtable<Long> ringNodes;
     private AsIpGenerator ipGenerator = AsIpGenerator.getInstance(125);
-    
     static String[] articles = {" ", "The ", "A "};
     static String[] verbs = {"fires ", "walks ", "talks ", "types ", "programs "};
     static String[] subjects = {"computer ", "Lucene ", "torrent "};
     static String[] objects = {"computer", "java", "video"};
     Random r = new Random(System.currentTimeMillis());
-    
-    
+
 //-------------------------------------------------------------------	
     public SearchSimulator() {
         peers = new HashMap<Long, Component>();
@@ -82,7 +82,8 @@ public final class SearchSimulator extends ComponentDefinition {
             bootstrapConfiguration = init.getBootstrapConfiguration();
             cyclonConfiguration = init.getCyclonConfiguration();
             searchConfiguration = init.getAggregationConfiguration();
-
+            tmanConfiguration = init.getTmanConfiguration();
+            System.out.println("SimulatorInit TManConfiguration: " + tmanConfiguration.getPeriod());
             identifierSpaceSize = cyclonConfiguration.getIdentifierSpaceSize();
 
             // generate periodic report
@@ -93,21 +94,19 @@ public final class SearchSimulator extends ComponentDefinition {
 
         }
     };
-    
+
     String randomText() {
         StringBuilder sb = new StringBuilder();
         int clauses = Math.max(1, r.nextInt(3));
         for (int i = 0; i < clauses; i++) {
-                sb.append(articles[r.nextInt(articles.length)]);
-                sb.append(subjects[r.nextInt(subjects.length)]);
-                sb.append(verbs[r.nextInt(verbs.length)]);
-                sb.append(objects[r.nextInt(objects.length)]);
-                sb.append(". ");
+            sb.append(articles[r.nextInt(articles.length)]);
+            sb.append(subjects[r.nextInt(subjects.length)]);
+            sb.append(verbs[r.nextInt(verbs.length)]);
+            sb.append(objects[r.nextInt(objects.length)]);
+            sb.append(". ");
         }
         return sb.toString();
     }
-    
-    
 //-------------------------------------------------------------------	
     Handler<WebRequest> handleWebRequest = new Handler<WebRequest>() {
         @Override
@@ -118,21 +117,19 @@ public final class SearchSimulator extends ComponentDefinition {
             trigger(event, peer.getPositive(Web.class));
         }
     };
-    
     Handler<WebResponse> handleWebResponse = new Handler<WebResponse>() {
         @Override
         public void handle(WebResponse event) {
-           trigger(event, webIncoming);
+            trigger(event, webIncoming);
         }
     };
-    
 //-------------------------------------------------------------------	
     Handler<AddIndexEntry> handleAddIndexEntry = new Handler<AddIndexEntry>() {
         @Override
         public void handle(AddIndexEntry event) {
             Long successor = ringNodes.getNode(event.getId());
             Component peer = peers.get(successor);
-            
+
             trigger(new AddIndexText(randomText()), peer.getNegative(IndexPort.class));
         }
     };
@@ -146,7 +143,7 @@ public final class SearchSimulator extends ComponentDefinition {
             Long successor = ringNodes.getNode(id);
 
             while (successor != null && successor.equals(id)) {
-                id = (id +1) % identifierSpaceSize;
+                id = (id + 1) % identifierSpaceSize;
                 successor = ringNodes.getNode(id);
             }
 
@@ -185,8 +182,8 @@ public final class SearchSimulator extends ComponentDefinition {
         connect(timer, peer.getNegative(Timer.class));
 //        connect(webIncoming, peer.getPositive(Web.class));
         subscribe(handleWebResponse, peer.getPositive(Web.class));
-        
-        trigger(new SearchPeerInit(address, num, bootstrapConfiguration, cyclonConfiguration, searchConfiguration), peer.getControl());
+
+        trigger(new SearchPeerInit(address, num, bootstrapConfiguration, cyclonConfiguration, tmanConfiguration, searchConfiguration), peer.getControl());
 
         trigger(new Start(), peer.getControl());
         peers.put(id, peer);

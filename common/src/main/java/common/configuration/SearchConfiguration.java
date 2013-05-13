@@ -17,7 +17,7 @@ public final class SearchConfiguration {
 
     public SearchConfiguration(long seed) {
         this.period = 2*1000;
-        this.numPartitions = 10;
+        this.numPartitions = 1;
         this.maxNumRoutingEntries = 20;
         this.seed = seed;
     }

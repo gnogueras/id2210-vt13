@@ -24,10 +24,12 @@ import search.system.peer.search.Search;
 import search.system.peer.search.SearchInit;
 import common.configuration.SearchConfiguration;
 import common.configuration.CyclonConfiguration;
+import common.configuration.TManConfiguration;
 import common.peer.PeerAddress;
 import cyclon.system.peer.cyclon.*;
 import se.sics.kompics.web.Web;
 import tman.system.peer.tman.TMan;
+import tman.system.peer.tman.TManInit;
 import tman.system.peer.tman.TManSamplePort;
 
 
@@ -84,10 +86,14 @@ public final class SearchPeer extends ComponentDefinition {
 			self = init.getPeerSelf();
 			CyclonConfiguration cyclonConfiguration = init.getCyclonConfiguration();
 			aggregationConfiguration = init.getApplicationConfiguration();
+                        TManConfiguration tmanConfiguration = init.getTManConfiguration();
+
 			
 			bootstrapRequestPeerCount = cyclonConfiguration.getBootstrapRequestPeerCount();
 
 			trigger(new CyclonInit(cyclonConfiguration), cyclon.getControl());
+                        //For stopping TMan
+                        //trigger(new TManInit(self, tmanConfiguration), tman.getControl());
 			trigger(new BootstrapClientInit(self, init.getBootstrapConfiguration()), bootstrap.getControl());
 			BootstrapRequest request = new BootstrapRequest("Cyclon", bootstrapRequestPeerCount);
 			trigger(request, bootstrap.getPositive(P2pBootstrap.class));
