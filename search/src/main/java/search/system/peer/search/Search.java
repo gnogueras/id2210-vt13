@@ -84,8 +84,8 @@ public final class Search extends ComponentDefinition {
     StandardAnalyzer analyzer = new StandardAnalyzer(Version.LUCENE_42);
     Directory index = new RAMDirectory();
     IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_42, analyzer);
-    int lastMissingIndexEntry = 0;
-    int maxIndexEntry = 0;
+    int lastMissingIndexEntry = 1;
+    int maxIndexEntry = 1;
     Random random;
     // When you partition the index you need to find new nodes
     // This is a routing table maintaining a list of pairs in each partition.
@@ -267,6 +267,8 @@ public final class Search extends ComponentDefinition {
 
             // find all missing index entries (ranges) between lastMissingIndexValue
             // and the maxIndexValue
+
+            logger.info(self.getId() + "GET MISSING ENTRIES. lastMissingIndexEntry={}  maxIndexEntry={}", lastMissingIndexEntry, maxIndexEntry);
             List<Range> missingIndexEntries = getMissingRanges();
 
             // Send a MissingIndexEntries.Request for the missing index entries to dest
@@ -290,7 +292,13 @@ public final class Search extends ComponentDefinition {
         // The line below is dangerous - we should bound the number of entries returned
         // so that it doesn't consume too much memory.
         int hitsPerPage = max - min > 0 ? max - min : 1;
-        Query query = NumericRangeQuery.newIntRange("id", min, max, true, true);
+        Query query;
+        //if (max == Integer.MAX_VALUE) {
+        //query = NumericRangeQuery.newIntRange("id", min - 1, max, true, true);
+        //} else {
+        query = NumericRangeQuery.newIntRange("id", min, max, true, true);
+        //}
+
         TopDocs topDocs = searcher.search(query, hitsPerPage, new Sort(new SortField("id", Type.INT)));
         return topDocs.scoreDocs;
     }
@@ -330,8 +338,14 @@ public final class Search extends ComponentDefinition {
                         startRange = (id == Integer.MAX_VALUE) ? Integer.MAX_VALUE : id + 1;
                     }
                 }
-                // Add all entries > maxIndexEntry as a range of interest.
-                res.add(new Range(maxIndexEntry + 1, Integer.MAX_VALUE));
+                if (startRange == lastMissingIndexEntry) {
+                    // No entry in the range [1, maxIndexEntry]
+                    res.add(new Range(lastMissingIndexEntry, Integer.MAX_VALUE));
+                } else {
+                    // Add all entries > maxIndexEntry as a range of interest.
+                    res.add(new Range(maxIndexEntry + 1, Integer.MAX_VALUE));
+                }
+
 
             }
         } catch (IOException ex) {
@@ -368,7 +382,7 @@ public final class Search extends ComponentDefinition {
                         String title = d.get("title");
 
                         /*logger.info(self.getId()
-                                + " - GET MISSING ENTRIES: Adding index entry to the buffer. title={} Id={} ", title, indexId);*/
+                         + " - GET MISSING ENTRIES: Adding index entry to the buffer. title={} Id={} ", title, indexId);*/
 
                         res.add(new IndexEntry(indexId, title));
                     } catch (IOException ex) {
@@ -391,7 +405,7 @@ public final class Search extends ComponentDefinition {
     }
 
     /**
-     * Called by null null null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
+     * Called by null null null null null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
      * handleMissingIndexEntriesRequest}
      *
      * @return List of IndexEntries at this node great than max
@@ -451,10 +465,16 @@ public final class Search extends ComponentDefinition {
             // TODO send missing index entries back to requester
             MissingIndexEntries.Response response = new MissingIndexEntries.Response(self, event.getSource(), res);
             logger.info(self.getId()
-                    + " - SEND RESPONSE with {} entries to peer:{}", res.size(), event.getSource().getId());
-            for(IndexEntry e : res){
+                    + " - Ranges from peer:{}", event.getSource().getId());
+            for (Range r : event.getMissingRanges()) {
                 logger.info(self.getId()
-                    + "          Id:{}   {}", e.getIndexId(), e.getText());
+                        + "          Range: [{} , {}]", r.getLower(), r.getUpper());
+            }
+            logger.info(self.getId()
+                    + " - SEND RESPONSE with {} entries to peer:{}", res.size(), event.getSource().getId());
+            for (IndexEntry e : res) {
+                logger.info(self.getId()
+                        + "          Id:{}   {}", e.getIndexId(), e.getText());
             }
             trigger(response, networkPort);
 
@@ -473,15 +493,15 @@ public final class Search extends ComponentDefinition {
             }
 
             logger.info(self.getId()
-                        + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
+                    + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
             for (IndexEntry e : entries) {
                 /*logger.info(self.getId()
-                        + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
+                 + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
                 updateIndexPointers(e.getIndexId());
                 logger.info(self.getId()
                         + " - RESPONSE. Adding index entry: {} Id={}", e.getText(), e.getIndexId());
                 /*logger.info(self.getId()
-                        + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
+                 + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
 
                 try {
                     addEntry(e.getText(), e.getIndexId());
@@ -490,12 +510,12 @@ public final class Search extends ComponentDefinition {
                     throw new IllegalArgumentException(ex.getMessage());
                 }
             }
-            
-           
-            int newLastMissingEntry = nextMissingIndexEntry();
+
+
+            //int newLastMissingEntry = nextMissingIndexEntry();
             logger.info(self.getId()
-                        + " - UPDATE POINTERS. lastMissingIndexEntry:{}   nextMissingIndexEntry:{}", lastMissingIndexEntry, newLastMissingEntry);
-            lastMissingIndexEntry = newLastMissingEntry;
+                    + " - UPDATE POINTERS. lastMissingIndexEntry:{}  maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
+            //lastMissingIndexEntry = newLastMissingEntry;
             logger.info(self.getId()
                     + " - RESPONSE. {} entries added to my index from Response of peer:{}", entries.size(), event.getSource().getId());
         }
@@ -508,11 +528,11 @@ public final class Search extends ComponentDefinition {
             neighbours.addAll(event.getSample());
 
             /*System.out.println("\nCYCLON SAMPE: numPartitions=" + searchConfiguration.getNumPartitions());
-            System.out.print("Self=" + self.getId() + " CyclonPartners={");
-            for (Address partner : neighbours) {
-                System.out.print(partner.getId() + ",");
-            }
-            System.out.println("}");*/
+             System.out.print("Self=" + self.getId() + " CyclonPartners={");
+             for (Address partner : neighbours) {
+             System.out.print(partner.getId() + ",");
+             }
+             System.out.println("}");*/
 
 
             // update routing tables
@@ -577,24 +597,25 @@ public final class Search extends ComponentDefinition {
 
     private void updateIndexPointers(int id) {
         /*if (id == lastMissingIndexEntry) {
-            //Find next lastMissingIndexEntry. The first entry that is missing
-            logger.info(self.getId()
-                        + " - UPDATE POINTERS. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
-            int newLastMissingEntry = nextMissingIndexEntry();
-            logger.info(self.getId()
-                        + " - UPDATE POINTERS. id:{}   newLastMissingEntry:{}", id, newLastMissingEntry);
+         //Find next lastMissingIndexEntry. The first entry that is missing
+         logger.info(self.getId()
+         + " - UPDATE POINTERS. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
+         int newLastMissingEntry = nextMissingIndexEntry();
+         logger.info(self.getId()
+         + " - UPDATE POINTERS. id:{}   newLastMissingEntry:{}", id, newLastMissingEntry);
                 
             
-        }*/
-        if(id == lastMissingIndexEntry){
-            lastMissingIndexEntry = nextMissingIndexEntry();
-        }
-        if (id == lastMissingIndexEntry + 1) {
-            lastMissingIndexEntry++;
-        }
+         }*/
         if (id > maxIndexEntry) {
             maxIndexEntry = id;
         }
+        if (id == lastMissingIndexEntry) {
+            lastMissingIndexEntry = nextMissingIndexEntry();
+        }
+        /*if (id == lastMissingIndexEntry + 1) {
+         lastMissingIndexEntry++;
+         }*/
+
     }
 
     private int nextMissingIndexEntry() {
@@ -606,9 +627,8 @@ public final class Search extends ComponentDefinition {
             ScoreDoc[] hits = getExistingDocsInRange(lastMissingIndexEntry, maxIndexEntry,
                     reader, searcher);
             if (hits != null) {
-                int startRange = lastMissingIndexEntry;
                 // This should terminate by finding the last entry at position maxIndexValue
-                for (int id = lastMissingIndexEntry+1; id <= maxIndexEntry; id++) {
+                for (int id = lastMissingIndexEntry + 1; id <= maxIndexEntry; id++) {
                     // We can skip the for-loop if the hits are returned in order, with lowest id first
                     boolean found = false;
                     for (int i = 0; i < hits.length; ++i) {

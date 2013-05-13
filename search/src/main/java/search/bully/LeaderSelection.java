@@ -29,7 +29,6 @@ public class LeaderSelection extends ComponentDefinition {
    
         subscribe(initHandler, control);
         subscribe(handleStart, control);
-
         
     }
     Handler<LeaderSelectionInit> initHandler = new Handler<LeaderSelectionInit>() {
