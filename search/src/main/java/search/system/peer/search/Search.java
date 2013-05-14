@@ -55,7 +55,7 @@ import se.sics.kompics.web.WebResponse;
 import search.bully.Bully;
 import search.bully.BullyInit;
 import search.bully.BullyPort;
-import search.bully.SelectNewLeader;
+import search.bully.NewInstance;
 import search.simulator.snapshot.Snapshot;
 import search.system.peer.AddIndexText;
 import search.system.peer.IndexPort;
