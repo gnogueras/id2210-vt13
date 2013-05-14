@@ -93,7 +93,7 @@ public final class SearchPeer extends ComponentDefinition {
 
 			trigger(new CyclonInit(cyclonConfiguration), cyclon.getControl());
                         //For stopping TMan
-                        //trigger(new TManInit(self, tmanConfiguration), tman.getControl());
+                        trigger(new TManInit(self, tmanConfiguration), tman.getControl());
 			trigger(new BootstrapClientInit(self, init.getBootstrapConfiguration()), bootstrap.getControl());
 			BootstrapRequest request = new BootstrapRequest("Cyclon", bootstrapRequestPeerCount);
 			trigger(request, bootstrap.getPositive(P2pBootstrap.class));
