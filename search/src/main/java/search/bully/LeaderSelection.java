@@ -50,7 +50,7 @@ public class LeaderSelection extends ComponentDefinition {
          * Start Bully instance (create component)
          * trigger new SelectLeaderRequest in Bully
          */
-        trigger(new SelectNewLeader(self, instance), bullyPort);
+        trigger(new NewInstance(self, instance), bullyPort);
     }
 
     

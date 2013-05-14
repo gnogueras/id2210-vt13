@@ -42,7 +42,7 @@ public class Bully extends ComponentDefinition {
         //subscribe
         subscribe(handleInit, control);
         subscribe(handleStart, control);
-        subscribe(handleSelectNewLeader, bullyPort);
+        subscribe(handleNewInstance, bullyPort);
         subscribe(handleElection, networkPort);
         subscribe(handleAnswer, networkPort);
         subscribe(handleCoordinator, networkPort);        
@@ -65,9 +65,9 @@ public class Bully extends ComponentDefinition {
         }
     };
     
-    Handler<SelectNewLeader> handleSelectNewLeader = new Handler<SelectNewLeader>() {
+    Handler<NewInstance> handleNewInstance = new Handler<NewInstance>() {
         @Override
-        public void handle(SelectNewLeader event) {
+        public void handle(NewInstance event) {
             logger.info("Node {} got a select new leader request from instance {}",
                     self.getId(), event.getInstance());
             ArrayList<Address> lowerIdNeighbors = selectLowerIdNeighbors(neighbors);
