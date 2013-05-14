@@ -55,7 +55,7 @@ import se.sics.kompics.web.WebResponse;
 import search.bully.Bully;
 import search.bully.BullyInit;
 import search.bully.BullyPort;
-import search.bully.SelectNewLeader;
+import search.bully.NewInstance;
 import search.system.peer.AddIndexText;
 import search.system.peer.IndexPort;
 import tman.system.peer.tman.TManSample;
@@ -590,7 +590,7 @@ public final class Search extends ComponentDefinition {
              BullyInit bullyinit = new BullyInit(sampleNodes, self);
              trigger(bullyinit, bully.control());
              int instance = self.getId();
-             trigger(new SelectNewLeader(self, instance), bullyPort);
+             trigger(new NewInstance(self, instance), bullyPort);
              */
         }
     };

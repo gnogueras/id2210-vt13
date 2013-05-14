@@ -12,12 +12,12 @@ import se.sics.kompics.address.Address;
  *
  * @author Gerard
  */
-public class SelectNewLeader extends Event {
+public class NewInstance extends Event {
 
     private int instance;
     private Address self;
 
-    public SelectNewLeader(Address self, int instance) {
+    public NewInstance(Address self, int instance) {
         super();
         this.instance = instance;
         this.self = self;

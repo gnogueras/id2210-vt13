@@ -13,6 +13,6 @@ import se.sics.kompics.PortType;
 public class BullyPort extends PortType {
     {
         indication(LeaderSelected.class);       
-        request(SelectNewLeader.class);
+        request(NewInstance.class);
     }
 }
