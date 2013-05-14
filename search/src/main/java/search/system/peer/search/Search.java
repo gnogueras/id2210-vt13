@@ -1,5 +1,6 @@
 package search.system.peer.search;
 
+import search.simulator.snapshot.Snapshot;
 import common.configuration.SearchConfiguration;
 import cyclon.system.peer.cyclon.CyclonSample;
 import cyclon.system.peer.cyclon.CyclonSamplePort;
@@ -55,6 +56,7 @@ import search.bully.Bully;
 import search.bully.BullyInit;
 import search.bully.BullyPort;
 import search.bully.SelectNewLeader;
+import search.simulator.snapshot.Snapshot;
 import search.system.peer.AddIndexText;
 import search.system.peer.IndexPort;
 import tman.system.peer.tman.TManSample;
