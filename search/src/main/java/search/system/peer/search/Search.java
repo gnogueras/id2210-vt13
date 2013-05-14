@@ -1,6 +1,5 @@
 package search.system.peer.search;
 
-import search.simulator.snapshot.Snapshot;
 import common.configuration.SearchConfiguration;
 import cyclon.system.peer.cyclon.CyclonSample;
 import cyclon.system.peer.cyclon.CyclonSamplePort;
@@ -78,7 +77,6 @@ public final class Search extends ComponentDefinition {
     Positive<BullyPort> bullyPort = positive(BullyPort.class);
     ArrayList<Address> neighbours = new ArrayList<Address>();
     private Address self;
-    private double num;
     private SearchConfiguration searchConfiguration;
     // Apache Lucene used for searching
     StandardAnalyzer analyzer = new StandardAnalyzer(Version.LUCENE_42);
@@ -118,7 +116,6 @@ public final class Search extends ComponentDefinition {
         @Override
         public void handle(SearchInit init) {
             self = init.getSelf();
-            num = init.getNum();
             searchConfiguration = init.getConfiguration();
             routingTable = new HashMap<Integer, List<PeerDescriptor>>(searchConfiguration.getNumPartitions());
             random = new Random(init.getConfiguration().getSeed());
@@ -138,7 +135,6 @@ public final class Search extends ComponentDefinition {
                 e.printStackTrace();
             }
 
-            Snapshot.updateNum(self, num);
         }
     };
     Handler<WebRequest> handleWebRequest = new Handler<WebRequest>() {
@@ -217,6 +213,7 @@ public final class Search extends ComponentDefinition {
         doc.add(new IntField("id", id, Field.Store.YES));
         w.addDocument(doc);
         w.close();
+        Snapshot.incNumIndexEntries(self);
     }
 
     private String query(StringBuilder sb, String querystr) throws ParseException, IOException {
@@ -405,7 +402,7 @@ public final class Search extends ComponentDefinition {
     }
 
     /**
-     * Called by null null null null null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
+     * Called by null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
      * handleMissingIndexEntriesRequest}
      *
      * @return List of IndexEntries at this node great than max
@@ -541,6 +538,7 @@ public final class Search extends ComponentDefinition {
                 List<PeerDescriptor> nodes = routingTable.get(partition);
                 if (nodes == null) {
                     nodes = new ArrayList<PeerDescriptor>();
+                    routingTable.put(partition, nodes);
                 }
                 // Note - this might replace an existing entry in Lucene
                 nodes.add(new PeerDescriptor(p));
