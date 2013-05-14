@@ -50,11 +50,6 @@ public class Bully extends ComponentDefinition {
     }
     Handler<BullyInit> handleInit = new Handler<BullyInit>() {
         public void handle(BullyInit event) {
-            logger.info("Node {} component handled bullyInit.",
-                        event.getSelf().getId());
-            neighbors = event.getNeighbors();
-            self = event.getSelf();
-            
             //Inicialization of the Delay
             //Delay: timeout for NoCoordination 
             delay = 5000;
@@ -108,18 +103,10 @@ public class Bully extends ComponentDefinition {
             //Abort other processing:sending election or answer..
             //Coordinator received. Cancel the timeout
             trigger(new CancelTimeout(timeoutId), timerPort);
-            //Trigger new LeaderSelected event
-            trigger(new LeaderSelected(0, event.getSource()), bullyPort);
+            //Trigger new StartLeaderSelectionEvent event
+            trigger(new NewLeaderFromBully(event.getInstance(), event.getSource()), bullyPort);
         }
     };
-    /*
-     * This method should go to the LeaderSelection component?
-    Handler<Suspect> handleCrash = new Handler<Suspect>() {
-        public void handle(Suspect event) {
-            //start election if crash = leader
-            neighbors.remove(event.getSuspected());
-        }
-    };*/
 
     //Select peers from the neighbor list with lower id
     //CHANGES: change the name to selectLowerIdNeighbors

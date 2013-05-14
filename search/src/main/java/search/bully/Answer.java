@@ -14,7 +14,7 @@ import se.sics.kompics.network.Message;
 public class Answer extends Message {
     /*
      * Answer: response to Election message. 
-     * Peer answers an Election message received from a lower ID node.
+     * Peer answers an Election message received from a (lower ranked) higher ID node.
      * It can be seen as an "I am alive" message.
      */
 

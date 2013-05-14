@@ -14,7 +14,7 @@ import se.sics.kompics.network.Message;
 public class Election extends Message{
     /*
      * Election: message sent as a request for being the new Leader
-     * Peer sends Election message to all higher ID nodes. 
+     * Peer sends Election message to all higher ranked (lower ID) nodes. 
      * If no Answer from any node, it will becomes new leader.
      * Otherwise, wait some time until receive a Coordinator message.
      * (expiration timeout, resend Election)

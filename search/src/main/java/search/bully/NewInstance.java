@@ -4,7 +4,7 @@
  */
 package search.bully;
 
-import common.peer.PeerAddress;
+import java.util.ArrayList;
 import se.sics.kompics.Event;
 import se.sics.kompics.address.Address;
 
@@ -16,11 +16,13 @@ public class NewInstance extends Event {
 
     private int instance;
     private Address self;
+    ArrayList<Address> neighbors;
 
-    public NewInstance(Address self, int instance) {
+    public NewInstance(Address self, int instance, ArrayList<Address> neighbors) {
         super();
         this.instance = instance;
         this.self = self;
+        this.neighbors = neighbors;
     }
 
     public int getInstance() {
@@ -37,6 +39,10 @@ public class NewInstance extends Event {
 
     public void setSelf(Address self) {
         this.self = self;
+    }
+
+    public ArrayList<Address> getNeighbors() {
+        return neighbors;
     }
 
 }
