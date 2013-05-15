@@ -40,13 +40,23 @@ public class EventuallyPerfectFailureDetector extends ComponentDefinition {
     Handler<EPFDInit> handleInit = new Handler<EPFDInit>() {
         public void handle(EPFDInit event) {
             self = event.getSelf();
-            neighbours = event.getNeighbours();
             heartbeatPeriod = event.getHeartbeatPeriod();
             checkPeriod = event.getHeartbeatPeriod();
             increment = event.getIncrement();
             alive = new ArrayList<Address>();
             suspected = new ArrayList<Address>();
-            
+        }
+    };
+    
+    Handler<Start> handleStart = new Handler<Start>() {
+        public void handle(Start event) {
+        }
+    };
+    
+    Handler<StartMonitoring> handleStartMonitoring = new Handler<StartMonitoring>() {
+        public void handle(StartMonitoring event) {
+            neighbours = event.getNeighbours();
+                       
             //Trigger heartbeatTimeout event
             startHeartbeatTimeout(heartbeatPeriod);
 
@@ -55,10 +65,6 @@ public class EventuallyPerfectFailureDetector extends ComponentDefinition {
         }
     };
     
-    Handler<Start> handleStart = new Handler<Start>() {
-        public void handle(Start event) {
-        }
-    };
     
     Handler<CheckTimeout> handleCheckTimeout = new Handler<CheckTimeout>() {
         public void handle(CheckTimeout event) {

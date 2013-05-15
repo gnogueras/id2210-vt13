@@ -13,6 +13,7 @@ import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
 import se.sics.kompics.address.Address;
 import search.epfd.EPFDPort;
+import search.epfd.StartMonitoring;
 import search.epfd.Suspect;
 import tman.system.peer.tman.TManSample;
 import tman.system.peer.tman.TManSamplePort;
@@ -31,13 +32,15 @@ public class LeaderSelection extends ComponentDefinition {
     static final int CONVERGENCE_THRESHOLD = 10;
     int convergenceCounter;
     static int instance=0;
+    int numberOfComparedPeers;
 
     public LeaderSelection() {
         super();
-
         subscribe(initHandler, control);
         subscribe(handleStart, control);
-
+        subscribe(handleTManSample, tmanPort);
+        subscribe(handleNewLeaderFromBully, bullyPort);
+        subscribe(handleSuspect, epfdPort);       
     }
     Handler<LeaderSelectionInit> initHandler = new Handler<LeaderSelectionInit>() {
         public void handle(LeaderSelectionInit event) {
@@ -53,12 +56,7 @@ public class LeaderSelection extends ComponentDefinition {
             System.out.println("Leader Selection component started.");
         }
     };
-    /*
-     Handler<StartLeaderSelectionEvent> handleLeaderSelectedEvent = new Handler<StartLeaderSelectionEvent>() {
-     public void handle(StartLeaderSelectionEvent event) {
-     trigger(new NewInstance(self, event.getInstance(), tmanPartners), bullyPort);
-     }
-     };*/
+
     Handler<TManSample> handleTManSample = new Handler<TManSample>() {
         public void handle(TManSample event) {
 
@@ -66,13 +64,15 @@ public class LeaderSelection extends ComponentDefinition {
             previousPartners.addAll(tmanPartners);
             tmanPartners = event.getSample();
             //TMan converged?
-            if (tmanPartners.containsAll(previousPartners)) {
+            numberOfComparedPeers = Math.min(previousPartners.size(), tmanPartners.size())-1;
+            if (compareFirstNElements(tmanPartners, previousPartners, numberOfComparedPeers)) {
                 convergenceCounter++;
             } else {
                 convergenceCounter = 0;
             }
 
             if (convergenceCounter == CONVERGENCE_THRESHOLD && leader == null) {
+                trigger(new StartMonitoring(tmanPartners), epfdPort);
                 trigger(new NewInstance(self, instance, tmanPartners), bullyPort);
             }
         }
@@ -93,4 +93,13 @@ public class LeaderSelection extends ComponentDefinition {
             }
         }
     };
+    
+    private boolean compareFirstNElements(ArrayList<Address> list1, ArrayList<Address> list2, int n){
+        for(int i=0; i<n; i++){
+            if(list1.get(i).getId()!=list2.get(i).getId()){
+                return false;
+            }
+        }
+        return true;
+    }
 }

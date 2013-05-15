@@ -29,7 +29,6 @@ import search.epfd.EPFDPort;
 public class Bully extends ComponentDefinition {
     private static final Logger logger = LoggerFactory.getLogger(Bully.class);
     Negative<BullyPort> bullyPort = negative(BullyPort.class);
-    Positive<EPFDPort> epfdPort = positive(EPFDPort.class);
     Positive<Network> networkPort = positive(Network.class);
     Positive<Timer> timerPort = positive(Timer.class);
     ArrayList<Address> neighbors;

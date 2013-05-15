@@ -7,10 +7,8 @@ import se.sics.kompics.address.Address;
 public class LeaderSelectionInit extends Init {
     
     private Address self;
-    private Set<Address> neighborSet;
 
-    public LeaderSelectionInit(Address self, Set<Address> neighborSet) {
-        this.neighborSet = neighborSet;
+    public LeaderSelectionInit(Address self) {
         this.self = self;
     }
 
@@ -18,8 +16,5 @@ public class LeaderSelectionInit extends Init {
         return self;
     }
 
-    public Set<Address> getNeighborSet() {
-        return neighborSet;
-    }
     
 }

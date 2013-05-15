@@ -55,6 +55,8 @@ import se.sics.kompics.web.WebResponse;
 import search.bully.Bully;
 import search.bully.BullyInit;
 import search.bully.BullyPort;
+import search.bully.CurrentLeaderEvent;
+import search.bully.LeaderSelectionPort;
 import search.bully.NewInstance;
 import search.simulator.snapshot.Snapshot;
 import search.system.peer.AddIndexText;
@@ -76,7 +78,8 @@ public final class Search extends ComponentDefinition {
     Negative<Web> webPort = negative(Web.class);
     Positive<CyclonSamplePort> cyclonSamplePort = positive(CyclonSamplePort.class);
     Positive<TManSamplePort> tmanPort = positive(TManSamplePort.class);
-    Positive<BullyPort> bullyPort = positive(BullyPort.class);
+    //Positive<BullyPort> bullyPort = positive(BullyPort.class);
+    Positive<LeaderSelectionPort> leaderSelectionPort = positive(LeaderSelectionPort.class);
     ArrayList<Address> neighbours = new ArrayList<Address>();
     private Address self;
     private SearchConfiguration searchConfiguration;
@@ -112,6 +115,8 @@ public final class Search extends ComponentDefinition {
         subscribe(handleMissingIndexEntriesRequest, networkPort);
         subscribe(handleMissingIndexEntriesResponse, networkPort);
         subscribe(handleTManSample, tmanPort);
+        subscribe(handleCurrentLeaderEvent, leaderSelectionPort);
+
     }
 //-------------------------------------------------------------------	
     Handler<SearchInit> handleInit = new Handler<SearchInit>() {
@@ -404,7 +409,7 @@ public final class Search extends ComponentDefinition {
     }
 
     /**
-     * Called by null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
+     * Called by null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
      * handleMissingIndexEntriesRequest}
      *
      * @return List of IndexEntries at this node great than max
@@ -592,6 +597,15 @@ public final class Search extends ComponentDefinition {
              int instance = self.getId();
              trigger(new SelectNewLeader(self, instance), bullyPort);
              */
+        }
+    };
+    Handler<CurrentLeaderEvent> handleCurrentLeaderEvent = new Handler<CurrentLeaderEvent>() {
+        @Override
+        public void handle(CurrentLeaderEvent event) {
+            //New Leader has been selected
+            logger.info(self.getId()
+                    + " - NEW LEADER has been selected in instanve {}. LeaderId: {} ", event.getInstance(), event.getLeader());
+
         }
     };
 
