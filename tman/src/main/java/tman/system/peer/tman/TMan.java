@@ -42,6 +42,7 @@ public final class TMan extends ComponentDefinition {
     private Random r;
     private int max_age = 10;
     private int psi = 5;
+    private static final int PEER_TRUNCATE_VALUE = 4;
 
     public class TManSchedule extends Timeout {
 
@@ -289,54 +290,20 @@ public final class TMan extends ComponentDefinition {
 
     //Implement Rank function
     private ArrayList<Address> rank(List<Address> buffer) {
-        /*System.out.print("RANK. base=" + base.getPeerId() + " buffer={");
-         for (PeerAddress partner : buffer) {
-         System.out.print(partner.getPeerId() + ",");
-         }
-         System.out.println("}");*/
+
         ArrayList<Address> aux = new ArrayList<Address>(buffer);
-
         Collections.sort(aux, new ComparatorById(self));
-        /*System.out.print("RANK after SORT. base=" + base.getPeerId() + " aux={");
-         for (PeerAddress partner : aux) {
-         System.out.print(partner.getPeerId() + ",");
-         }
-         System.out.println("}");*/
 
-        // Select the nodes with LOWER ID
-        //ArrayList<Address> sorted = new ArrayList<Address>(aux.subList(0, aux.indexOf(base)));
-        //Collections.reverse(sorted);
-        /*System.out.print("RANK. base=" + base.getPeerId() + " sorted={");
-         for (PeerAddress partner : sorted) {
-         System.out.print(partner.getPeerId() + ",");
-         }
-         System.out.println("}");*/
-
-
-        //ArrayList<Address> tail = new ArrayList<Address>(aux.subList(aux.indexOf(base) + 1, aux.size()));
-        /*System.out.print("RANK. base=" + base.getPeerId() + " tail={");
-         for (PeerAddress partner : tail) {
-         System.out.print(partner.getPeerId() + ",");
-         }
-         System.out.println("}");*/
-        /*for (int i = 1; i < aux.indexOf(base); i++) {
-         sorted.add(aux.get(aux.indexOf(base) - i));
-         System.out.println("Element "+(aux.indexOf(base)-i)+ ": "+ aux.get(aux.indexOf(base) - i));
-         }*/
-
-        //aux.remove(base);
-        /*System.out.print("RANK after FOR. base=" + base.getPeerId() + " aux={");
-         for (PeerAddress partner : aux) {
-         System.out.print(partner.getPeerId() + ",");
-         }
-         System.out.println("}");*/
-        //sorted.addAll(tail);
-        /*System.out.print("RANK. base=" + base.getPeerId() + " return={");
-         for (PeerAddress partner : sorted) {
-         System.out.print(partner.getPeerId() + ",");
-         }
-         System.out.println("}");*/
-        return aux;
+       if (aux.size()> PEER_TRUNCATE_VALUE){
+            Random r = new Random();
+            int randomTailPeer=r.nextInt(aux.size()-PEER_TRUNCATE_VALUE) + PEER_TRUNCATE_VALUE;
+            ArrayList<Address> truncatedAux = new ArrayList<Address>(aux.subList(0, PEER_TRUNCATE_VALUE));
+            truncatedAux.add(aux.get(randomTailPeer));
+            return truncatedAux;
+        }
+        else {
+            return aux;
+       }
     }
 
     //Implement Merge function
