@@ -71,7 +71,7 @@ public class Bully extends ComponentDefinition {
             ArrayList<Address> lowerIdNeighbors = selectLowerIdNeighbors(neighbors);
             if (lowerIdNeighbors.isEmpty()) {
                 //trigger COORDINATOR
-                broadcastCoordinator(neighbors, delay);
+                broadcastCoordinator(neighbors, event.getInstance());
             } else {
                 /*broadcastElection(lowerIdNeighbors, event.getInstance());
                 //trigger timeout
@@ -123,7 +123,7 @@ public class Bully extends ComponentDefinition {
                     self.getId());
             
             broadcastCoordinator(neighbors, event.getInstance());
-            trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
+            //trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
             
         }
     };
@@ -134,7 +134,7 @@ public class Bully extends ComponentDefinition {
                     self.getId(), event.getSource().getId());
             //Coordinator received. Cancel the timeout
             trigger(new CancelTimeout(coordinatorTimeoutId), timerPort);
-            //Trigger new StartLeaderSelectionEvent event
+            //Trigger new NewLeaderFromBully event
             trigger(new NewLeaderFromBully(event.getInstance(), event.getSource()), bullyPort);
         }
     };

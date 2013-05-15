@@ -30,9 +30,10 @@ public class LeaderSelection extends ComponentDefinition {
     Positive<BullyPort> bullyPort = requires(BullyPort.class);
     Positive<EPFDPort> epfdPort = requires(EPFDPort.class);
     Negative<LeaderSelectionPort> leaderSelectionPort = negative(LeaderSelectionPort.class);
-    Address self, leader;
+    Address self;
+    static Address leader;
     ArrayList<Address> tmanPartners, previousPartners;
-    static final int CONVERGENCE_THRESHOLD = 10;
+    static final int CONVERGENCE_THRESHOLD = 15;
     int convergenceCounter;
     static int instance=0;
     int numberOfComparedPeers;
@@ -72,19 +73,21 @@ public class LeaderSelection extends ComponentDefinition {
             } else {
                 convergenceCounter = 0;
             }
-            logger.info("\n****** "+self.getId()
-                    + " - COUNTER = {} \n", convergenceCounter);
+            logger.info("\n****** "+self.getId() + " - COUNTER = {} \n", convergenceCounter);
 
             if (convergenceCounter == CONVERGENCE_THRESHOLD && leader == null) {
+            logger.info("\n****** "+self.getId() + " - TMANPARTNERS MONITORING = {} \n", tmanPartners);
                 trigger(new StartMonitoring(tmanPartners), epfdPort);
                 trigger(new NewInstance(self, instance, tmanPartners), bullyPort);
+            instance++;
+            logger.info("\n****** "+self.getId() + " - INSTANCENUMBER = {} \n", instance);
             }
         }
     };
     Handler<NewLeaderFromBully> handleNewLeaderFromBully = new Handler<NewLeaderFromBully>() {
         public void handle(NewLeaderFromBully event) {
             leader = event.getLeader();
-            instance++;
+            logger.info("\n****** "+self.getId() + " - REPORTED LEADER = {} \n", leader);
             trigger(new CurrentLeaderEvent(event.getInstance(), leader), leaderSelectionPort);
         }
     };
