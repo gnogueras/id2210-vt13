@@ -42,7 +42,7 @@ public final class TMan extends ComponentDefinition {
     private Random r;
     private int max_age = 10;
     private int psi = 5;
-    private static final int PEER_TRUNCATE_VALUE = 4;
+    private static final int PEER_TRUNCATE_VALUE = 8;
 
     public class TManSchedule extends Timeout {
 
@@ -100,7 +100,7 @@ public final class TMan extends ComponentDefinition {
             ArrayList<PeerDescriptor> cyclonPartnersDescriptors = addressToPeerDescriptor(cyclonPartners);
 
             //Printing info
-            System.out.print("ACTIVE. Self=" + self.getId() + " CyclonPartners=");
+            //System.out.print("ACTIVE. Self=" + self.getId() + " CyclonPartners=");
             //printAddressList(cyclonPartners);
 
             //System.out.print("ACTIVE. Self=" + self.getId() + " TmanPartnersDescriptors (last view)=");
@@ -215,9 +215,9 @@ public final class TMan extends ComponentDefinition {
             tmanPartners = peerDescriptorToAddress(tmanPartnersDescriptors);
             tmanPartners = rank(tmanPartners);
 
-            System.out.print("PASSIVE. Self=" + self.getId() + " View updated=");
-            printDescriptorList(tmanPartnersDescriptors);
-            printAddressList(tmanPartners);
+            //System.out.print("PASSIVE. Self=" + self.getId() + " View updated=");
+            //printDescriptorList(tmanPartnersDescriptors);
+            //printAddressList(tmanPartners);
         }
     };
     Handler<ExchangeMsg.Response> handleTManPartnersResponse = new Handler<ExchangeMsg.Response>() {
@@ -246,8 +246,8 @@ public final class TMan extends ComponentDefinition {
             tmanPartners = peerDescriptorToAddress(tmanPartnersDescriptors);
             tmanPartners = rank(tmanPartners);
 
-            System.out.print("ACTIVE. Self=" + self.getId() + " View updated=");
-            printDescriptorList(tmanPartnersDescriptors);
+            //System.out.print("ACTIVE. Self=" + self.getId() + " View updated=");
+            //printDescriptorList(tmanPartnersDescriptors);
         }
     };
 // TODO - if you call this method with a list of entries, it will

@@ -21,12 +21,12 @@ import se.sics.kompics.timer.Timer;
 import search.epfd.Suspect;
 import search.epfd.EPFDPort;
 
-
 /**
  *
  * @author Gerard
  */
 public class Bully extends ComponentDefinition {
+
     private static final Logger logger = LoggerFactory.getLogger(Bully.class);
     Negative<BullyPort> bullyPort = negative(BullyPort.class);
     Positive<Network> networkPort = positive(Network.class);
@@ -34,8 +34,7 @@ public class Bully extends ComponentDefinition {
     ArrayList<Address> neighbors;
     Address self;
     int delay;
-    UUID timeoutId;
-
+    UUID coordinatorTimeoutId, answerTimeoutId;
 
     public Bully() {
         //subscribe
@@ -44,7 +43,10 @@ public class Bully extends ComponentDefinition {
         subscribe(handleNewInstance, bullyPort);
         subscribe(handleElection, networkPort);
         subscribe(handleAnswer, networkPort);
-        subscribe(handleCoordinator, networkPort);        
+        subscribe(handleCoordinator, networkPort);
+        subscribe(handleNoCoordinationTimeout, timerPort);
+        subscribe(handleNoAnswerTimeout, timerPort);
+        
         //subscribe(handleCrash, pfdPort);
     }
     Handler<BullyInit> handleInit = new Handler<BullyInit>() {
@@ -56,10 +58,9 @@ public class Bully extends ComponentDefinition {
         }
     };
     Handler<Start> handleStart = new Handler<Start>() {
-        public void handle(Start event) {           
+        public void handle(Start event) {
         }
     };
-    
     Handler<NewInstance> handleNewInstance = new Handler<NewInstance>() {
         @Override
         public void handle(NewInstance event) {
@@ -68,15 +69,26 @@ public class Bully extends ComponentDefinition {
             logger.info("Node {} got a select new leader request from instance {}",
                     self.getId(), event.getInstance());
             ArrayList<Address> lowerIdNeighbors = selectLowerIdNeighbors(neighbors);
-            broadcastElection(lowerIdNeighbors, event.getInstance());
+            if (lowerIdNeighbors.isEmpty()) {
+                //trigger COORDINATOR
+                broadcastCoordinator(neighbors, delay);
+            } else {
+                /*broadcastElection(lowerIdNeighbors, event.getInstance());
+                //trigger timeout
+                ScheduleTimeout stAnswer = new ScheduleTimeout(delay);
+                stAnswer.setTimeoutEvent(new NoAnswerTimeout(stAnswer, event.getInstance()));
+                answerTimeoutId = stAnswer.getTimeoutEvent().getTimeoutId();
+                trigger(stAnswer, timerPort);*/
+            }
         }
     };
     Handler<Election> handleElection = new Handler<Election>() {
         @Override
         public void handle(Election event) {
-        // For consistency, when comparing: first self.getPeerId, second BigInteger to compare with
-        // Send reply if self has lower id than proposed leader
-            
+            // For consistency, when comparing: first self.getPeerId, second BigInteger to compare with
+            // Send reply if self has lower id than proposed leader
+            logger.info("ELECTION: Node {} got a Election from node {}",
+                    self.getId(), event.getSource().getId());
             if (self.getId() < event.getSource().getId()) {
                 trigger(new Answer(self, event.getSource(), event.getInstance()), networkPort);
             }
@@ -87,25 +99,41 @@ public class Bully extends ComponentDefinition {
             //Wait until a coordinator message is received.
             //If no coordination message before timeout expiration,
             //resent Election message.
+            logger.info("ANSWER: Node {} got a Answer from node {}",
+                    self.getId(), event.getSource().getId());
             ScheduleTimeout stCoordination = new ScheduleTimeout(delay);
             stCoordination.setTimeoutEvent(new NoCoordinationTimeout(stCoordination, event.getInstance()));
-            timeoutId = stCoordination.getTimeoutEvent().getTimeoutId();
+            coordinatorTimeoutId = stCoordination.getTimeoutEvent().getTimeoutId();
             trigger(stCoordination, timerPort);
         }
     };
     Handler<NoCoordinationTimeout> handleNoCoordinationTimeout = new Handler<NoCoordinationTimeout>() {
         public void handle(NoCoordinationTimeout event) {
             //If no Coordinator message, resend the Election message again
+            logger.info("TIMEOUT COORDINATION EXPIRATION: Node {}",
+                    self.getId());
             ArrayList<Address> lowerIdNeighbors = selectLowerIdNeighbors(neighbors);
             broadcastElection(lowerIdNeighbors, event.getInstance());
         }
     };
-    
+    Handler<NoAnswerTimeout> handleNoAnswerTimeout = new Handler<NoAnswerTimeout>() {
+        public void handle(NoAnswerTimeout event) {
+            //If no Coordinator message, resend the Election message again
+            logger.info("TIMEOUT ANSWER EXPIRATION: Node {}",
+                    self.getId());
+            
+            broadcastCoordinator(neighbors, event.getInstance());
+            trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
+            
+        }
+    };
     Handler<Coordinator> handleCoordinator = new Handler<Coordinator>() {
         public void handle(Coordinator event) {
             //Abort other processing:sending election or answer..
+            logger.info("COORDINATOR: Node {} got a Coordinator from node {}",
+                    self.getId(), event.getSource().getId());
             //Coordinator received. Cancel the timeout
-            trigger(new CancelTimeout(timeoutId), timerPort);
+            trigger(new CancelTimeout(coordinatorTimeoutId), timerPort);
             //Trigger new StartLeaderSelectionEvent event
             trigger(new NewLeaderFromBully(event.getInstance(), event.getSource()), bullyPort);
         }
@@ -118,7 +146,7 @@ public class Bully extends ComponentDefinition {
     private ArrayList<Address> selectLowerIdNeighbors(ArrayList<Address> neighbors) {
         ArrayList<Address> lowerIdNeighbors = new ArrayList<Address>();
         for (Address peer : neighbors) {
-        // Add peer to lowerIdNeighbors list if self.getId > peer.getId
+            // Add peer to lowerIdNeighbors list if self.getId > peer.getId
             if (self.getId() > peer.getId()) {
                 lowerIdNeighbors.add(peer);
             }
@@ -130,6 +158,12 @@ public class Bully extends ComponentDefinition {
     private void broadcastElection(ArrayList<Address> peers, int instance) {
         for (Address peer : peers) {
             trigger(new Election(self, peer, instance), networkPort);
+        }
+    }
+    //Broadcast message m to the set of peers
+    private void broadcastCoordinator(ArrayList<Address> peers, int instance) {
+        for (Address peer : peers) {
+            trigger(new Coordinator(self, peer, instance), networkPort);
         }
     }
 }
