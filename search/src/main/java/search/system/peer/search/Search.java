@@ -272,18 +272,17 @@ public final class Search extends ComponentDefinition {
             // find all missing index entries (ranges) between lastMissingIndexValue
             // and the maxIndexValue
 
-            logger.info(self.getId() + "GET MISSING ENTRIES. lastMissingIndexEntry={}  maxIndexEntry={}", lastMissingIndexEntry, maxIndexEntry);
             List<Range> missingIndexEntries = getMissingRanges();
 
             // Send a MissingIndexEntries.Request for the missing index entries to dest
             MissingIndexEntries.Request req = new MissingIndexEntries.Request(self, dest,
                     missingIndexEntries);
 
-            logger.info(self.getId()
+            /*logger.info(self.getId()
                     + " - REQUEST: Ranges of entries requested: ");
             for (Range r : missingIndexEntries) {
                 logger.info(self.getId() + "        [{},{}]", r.getLower(), r.getUpper());
-            }
+            }*/
 
             trigger(req, networkPort);
         }
@@ -461,14 +460,10 @@ public final class Search extends ComponentDefinition {
             for (Range r : event.getMissingRanges()) {
                 res.addAll(getMissingIndexEntries(r));
             }
-
-            /*if(res.isEmpty()){
-             return;
-             }*/
-
+            
             // TODO send missing index entries back to requester
             MissingIndexEntries.Response response = new MissingIndexEntries.Response(self, event.getSource(), res);
-            logger.info(self.getId()
+            /*logger.info(self.getId()
                     + " - Ranges from peer:{}", event.getSource().getId());
             for (Range r : event.getMissingRanges()) {
                 logger.info(self.getId()
@@ -479,7 +474,7 @@ public final class Search extends ComponentDefinition {
             for (IndexEntry e : res) {
                 logger.info(self.getId()
                         + "          Id:{}   {}", e.getIndexId(), e.getText());
-            }
+            }*/
             trigger(response, networkPort);
 
         }
@@ -490,20 +485,20 @@ public final class Search extends ComponentDefinition {
             // TODO merge the missing index entries in your lucene index
             List<IndexEntry> entries = event.getEntries();
 
-            if (entries.isEmpty()) {
+            /*if (entries.isEmpty()) {
                 logger.info(self.getId()
                         + " - RESPONSE. Number of entries received {}", entries.size());
                 return;
-            }
+            }*/
 
-            logger.info(self.getId()
-                    + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
+            /*logger.info(self.getId()
+                    + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
             for (IndexEntry e : entries) {
                 /*logger.info(self.getId()
                  + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
                 updateIndexPointers(e.getIndexId());
-                logger.info(self.getId()
-                        + " - RESPONSE. Adding index entry: {} Id={}", e.getText(), e.getIndexId());
+                /*logger.info(self.getId()
+                        + " - RESPONSE. Adding index entry: {} Id={}", e.getText(), e.getIndexId());*/
                 /*logger.info(self.getId()
                  + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
 
@@ -515,13 +510,11 @@ public final class Search extends ComponentDefinition {
                 }
             }
 
-
-            //int newLastMissingEntry = nextMissingIndexEntry();
-            logger.info(self.getId()
+            /*logger.info(self.getId()
                     + " - UPDATE POINTERS. lastMissingIndexEntry:{}  maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
-            //lastMissingIndexEntry = newLastMissingEntry;
+            
             logger.info(self.getId()
-                    + " - RESPONSE. {} entries added to my index from Response of peer:{}", entries.size(), event.getSource().getId());
+                    + " - RESPONSE. {} entries added to my index from Response of peer:{}", entries.size(), event.getSource().getId());*/
         }
     };
     Handler<CyclonSample> handleCyclonSample = new Handler<CyclonSample>() {
@@ -604,7 +597,7 @@ public final class Search extends ComponentDefinition {
         public void handle(CurrentLeaderEvent event) {
             //New Leader has been selected
             logger.info(self.getId()
-                    + " - NEW LEADER has been selected in instanve {}. LeaderId: {} ", event.getInstance(), event.getLeader());
+                    + " - NEW LEADER has been selected in instance {}. LeaderId: {} ", event.getInstance(), event.getLeader());
 
         }
     };

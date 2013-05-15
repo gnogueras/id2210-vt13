@@ -6,6 +6,8 @@ package search.bully;
 
 import common.peer.PeerAddress;
 import java.util.ArrayList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Negative;
@@ -15,6 +17,7 @@ import se.sics.kompics.address.Address;
 import search.epfd.EPFDPort;
 import search.epfd.StartMonitoring;
 import search.epfd.Suspect;
+import search.system.peer.search.Search;
 import tman.system.peer.tman.TManSample;
 import tman.system.peer.tman.TManSamplePort;
 
@@ -22,7 +25,7 @@ import tman.system.peer.tman.TManSamplePort;
  * @author Gerard
  */
 public class LeaderSelection extends ComponentDefinition {
-
+    private static final Logger logger = LoggerFactory.getLogger(Search.class);
     Positive<TManSamplePort> tmanPort = requires(TManSamplePort.class);
     Positive<BullyPort> bullyPort = requires(BullyPort.class);
     Positive<EPFDPort> epfdPort = requires(EPFDPort.class);
@@ -59,7 +62,6 @@ public class LeaderSelection extends ComponentDefinition {
 
     Handler<TManSample> handleTManSample = new Handler<TManSample>() {
         public void handle(TManSample event) {
-
             previousPartners.clear();
             previousPartners.addAll(tmanPartners);
             tmanPartners = event.getSample();
@@ -70,6 +72,8 @@ public class LeaderSelection extends ComponentDefinition {
             } else {
                 convergenceCounter = 0;
             }
+            logger.info("\n****** "+self.getId()
+                    + " - COUNTER = {} \n", convergenceCounter);
 
             if (convergenceCounter == CONVERGENCE_THRESHOLD && leader == null) {
                 trigger(new StartMonitoring(tmanPartners), epfdPort);
@@ -94,7 +98,14 @@ public class LeaderSelection extends ComponentDefinition {
         }
     };
     
-    private boolean compareFirstNElements(ArrayList<Address> list1, ArrayList<Address> list2, int n){
+    private boolean compareFirstNElements(ArrayList<Address> list1, ArrayList<Address> list2, int n){     
+        if(list1.isEmpty() && list2.size()>0){
+            return false;
+        }
+        if(list1.size()>0 && list2.isEmpty()){
+            return false;
+        }
+        
         for(int i=0; i<n; i++){
             if(list1.get(i).getId()!=list2.get(i).getId()){
                 return false;

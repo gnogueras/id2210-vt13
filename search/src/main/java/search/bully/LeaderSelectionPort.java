@@ -9,8 +9,8 @@ import se.sics.kompics.PortType;
 
 public class LeaderSelectionPort extends PortType{
 	{
-		indication(StartLeaderSelectionEvent.class);
-		request(CurrentLeaderEvent.class);
+		request(StartLeaderSelectionEvent.class);
+		indication(CurrentLeaderEvent.class);
 	}
 
 }

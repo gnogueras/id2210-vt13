@@ -89,8 +89,11 @@ public final class SearchPeer extends ComponentDefinition {
                 leaderSelection.getNegative(BullyPort.class));
         connect(epfd.getPositive(EPFDPort.class),
                 leaderSelection.getNegative(EPFDPort.class));
+        connect(tman.getPositive(TManSamplePort.class),
+                leaderSelection.getNegative(TManSamplePort.class));
         connect(leaderSelection.getPositive(LeaderSelectionPort.class),
                 search.getNegative(LeaderSelectionPort.class));
+        
         connect(network, bully.getNegative(Network.class));
         connect(network, epfd.getNegative(Network.class));
         connect(timer, bully.getNegative(Timer.class));
@@ -121,7 +124,7 @@ public final class SearchPeer extends ComponentDefinition {
             trigger(request, bootstrap.getPositive(P2pBootstrap.class));
             
             trigger(new LeaderSelectionInit(self), leaderSelection.getControl());
-            trigger(new BullyInit(), bully.getControl());
+            trigger(new BullyInit(self), bully.getControl());
             trigger(new EPFDInit(self, heartbeatPeriod, increment), epfd.getControl());
         }
     };

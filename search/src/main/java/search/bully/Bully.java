@@ -51,6 +51,7 @@ public class Bully extends ComponentDefinition {
         public void handle(BullyInit event) {
             //Inicialization of the Delay
             //Delay: timeout for NoCoordination 
+            self = event.getSelf();
             delay = 5000;
         }
     };
@@ -62,6 +63,8 @@ public class Bully extends ComponentDefinition {
     Handler<NewInstance> handleNewInstance = new Handler<NewInstance>() {
         @Override
         public void handle(NewInstance event) {
+
+            neighbors = event.getNeighbors();
             logger.info("Node {} got a select new leader request from instance {}",
                     self.getId(), event.getInstance());
             ArrayList<Address> lowerIdNeighbors = selectLowerIdNeighbors(neighbors);
@@ -73,6 +76,7 @@ public class Bully extends ComponentDefinition {
         public void handle(Election event) {
         // For consistency, when comparing: first self.getPeerId, second BigInteger to compare with
         // Send reply if self has lower id than proposed leader
+            
             if (self.getId() < event.getSource().getId()) {
                 trigger(new Answer(self, event.getSource(), event.getInstance()), networkPort);
             }

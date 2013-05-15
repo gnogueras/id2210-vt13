@@ -101,11 +101,10 @@ public final class TMan extends ComponentDefinition {
 
             //Printing info
             System.out.print("ACTIVE. Self=" + self.getId() + " CyclonPartners=");
-            printAddressList(cyclonPartners);
+            //printAddressList(cyclonPartners);
 
-
-            System.out.print("ACTIVE. Self=" + self.getId() + " TmanPartnersDescriptors (last view)=");
-            printDescriptorList(tmanPartnersDescriptors);
+            //System.out.print("ACTIVE. Self=" + self.getId() + " TmanPartnersDescriptors (last view)=");
+            //printDescriptorList(tmanPartnersDescriptors);
 
             //merge
             //tmanPartners = merge(tmanPartners, cyclonPartners);
@@ -115,9 +114,9 @@ public final class TMan extends ComponentDefinition {
             tmanPartners = rank(tmanPartners);
 
 
-            System.out.print("ACTIVE. Self=" + self.getId() + " Merged (new view)={");
-            printDescriptorList(tmanPartnersDescriptors);
-            printAddressList(tmanPartners);
+            //System.out.print("ACTIVE. Self=" + self.getId() + " Merged view={");
+            //printDescriptorList(tmanPartnersDescriptors);
+            //printAddressList(tmanPartners);
 
             //ACTIVE THREAD
             //from 2 to 6 from the active 
@@ -162,8 +161,8 @@ public final class TMan extends ComponentDefinition {
         public void handle(ExchangeMsg.Request event) {
             //PASSIVE THREAD
 
-            System.out.print("PASSIVE. Self=" + self.getId() + " last view=");
-            printDescriptorList(tmanPartnersDescriptors);
+            //System.out.print("PASSIVE. Self=" + self.getId() + " last view=");
+            //printDescriptorList(tmanPartnersDescriptors);
 
             /*
              //buffer <-- merge
@@ -231,8 +230,8 @@ public final class TMan extends ComponentDefinition {
             //Get the PeerDescriptor buffer (ArrayList<PeerDescriptor>)
             ArrayList<PeerDescriptor> receivedDescriptors = event.getSelectedBuffer().getDescriptors();
             receivedDescriptors.add(new PeerDescriptor(event.getSource()));
-            System.out.print("ACTIVE. Self=" + self.getId() + " event.source=" + event.getSource().getId() + " receivedDescriptors=");
-            printDescriptorList(receivedDescriptors);
+            //System.out.print("ACTIVE. Self=" + self.getId() + " event.source=" + event.getSource().getId() + " receivedDescriptors=");
+            //printDescriptorList(receivedDescriptors);
 
             /*
              ArrayList<Address> bufferq = new ArrayList<Address>();
