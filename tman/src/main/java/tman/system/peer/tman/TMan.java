@@ -42,7 +42,7 @@ public final class TMan extends ComponentDefinition {
     private Random r;
     private int max_age = 10;
     private int psi = 5;
-    private static final int PEER_TRUNCATE_VALUE = 100;
+    private static final int PEER_TRUNCATE_VALUE = 6;
 
     public class TManSchedule extends Timeout {
 
