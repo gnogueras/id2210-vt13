@@ -34,6 +34,7 @@ public class Bully extends ComponentDefinition {
     ArrayList<Address> neighbors;
     Address self;
     int delay;
+    boolean gotAnswer;
     UUID coordinatorTimeoutId, answerTimeoutId;
 
     public Bully() {
@@ -55,6 +56,7 @@ public class Bully extends ComponentDefinition {
             //Delay: timeout for NoCoordination 
             self = event.getSelf();
             delay = 5000;
+            gotAnswer = false;
         }
     };
     Handler<Start> handleStart = new Handler<Start>() {
@@ -72,6 +74,7 @@ public class Bully extends ComponentDefinition {
             if (lowerIdNeighbors.isEmpty()) {
                 //trigger COORDINATOR
                 broadcastCoordinator(neighbors, event.getInstance());
+                trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
             } else {
                 /*broadcastElection(lowerIdNeighbors, event.getInstance());
                 //trigger timeout
@@ -101,10 +104,14 @@ public class Bully extends ComponentDefinition {
             //resent Election message.
             logger.info("ANSWER: Node {} got a Answer from node {}",
                     self.getId(), event.getSource().getId());
-            ScheduleTimeout stCoordination = new ScheduleTimeout(delay);
-            stCoordination.setTimeoutEvent(new NoCoordinationTimeout(stCoordination, event.getInstance()));
-            coordinatorTimeoutId = stCoordination.getTimeoutEvent().getTimeoutId();
-            trigger(stCoordination, timerPort);
+            if (gotAnswer==false){
+                gotAnswer = true;
+                trigger(new CancelTimeout(answerTimeoutId), timerPort);
+                ScheduleTimeout stCoordination = new ScheduleTimeout(delay);
+                stCoordination.setTimeoutEvent(new NoCoordinationTimeout(stCoordination, event.getInstance()));
+                coordinatorTimeoutId = stCoordination.getTimeoutEvent().getTimeoutId();
+                trigger(stCoordination, timerPort);
+            }
         }
     };
     Handler<NoCoordinationTimeout> handleNoCoordinationTimeout = new Handler<NoCoordinationTimeout>() {
@@ -119,12 +126,10 @@ public class Bully extends ComponentDefinition {
     Handler<NoAnswerTimeout> handleNoAnswerTimeout = new Handler<NoAnswerTimeout>() {
         public void handle(NoAnswerTimeout event) {
             //If no Coordinator message, resend the Election message again
-            logger.info("TIMEOUT ANSWER EXPIRATION: Node {}",
-                    self.getId());
-            
+            logger.info("TIMEOUT ANSWER EXPIRATION: Node {}", self.getId());            
             broadcastCoordinator(neighbors, event.getInstance());
-            //trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
-            
+            // inform own instance that it's the leader
+            trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
         }
     };
     Handler<Coordinator> handleCoordinator = new Handler<Coordinator>() {
