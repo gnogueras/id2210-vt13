@@ -152,7 +152,8 @@ public final class Search extends ComponentDefinition {
             } else if (args[0].compareToIgnoreCase("add") == 0) {
                 if (leader == null) {
                     //trigger discovery
-                    //trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), null, leader)) //wait for response
+                    //trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), args[1], self), networkPort);
+                    //wait for response
                 } else {
                     if (leader.getId() == self.getId()) {
                         //trigger event to add entry to neighbours
@@ -162,15 +163,26 @@ public final class Search extends ComponentDefinition {
                         //wait for response
                     }
                 }
-
                 // the rest has to be moved...
-
                 response = new WebResponse(addEntryHtml(args[1], Integer.parseInt(args[2])), event, 1, 1);
             } else {
                 response = new WebResponse(searchPageHtml(event
                         .getTarget()), event, 1, 1);
             }
             trigger(response, webPort);
+        }
+    };
+    Handler<AddEntryInLeader> handleAddEntryInLeader = new Handler<AddEntryInLeader>() {
+        @Override
+        public void handle(AddEntryInLeader event) {
+            if(leader==null){
+                //trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), event.getTextEntry(), event.getEntryPeer()), networkPort);
+            }
+        }
+    };
+    Handler<PropagateEntryFromLeader> handlePropagateEntryFromLeader = new Handler<PropagateEntryFromLeader>() {
+        @Override
+        public void handle(PropagateEntryFromLeader event) {
         }
     };
 
@@ -418,7 +430,7 @@ public final class Search extends ComponentDefinition {
     }
 
     /**
-     * Called by null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
+     * Called by null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
      * handleMissingIndexEntriesRequest}
      *
      * @return List of IndexEntries at this node great than max
