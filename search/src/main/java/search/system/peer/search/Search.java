@@ -85,6 +85,8 @@ public final class Search extends ComponentDefinition {
     int lastMissingIndexEntry = 1;
     int maxIndexEntry = 1;
     Address leader = null;
+    int indexId=1;
+    WebRequest webRequestEvent;
     Random random;
     // When you partition the index you need to find new nodes
     // This is a routing table maintaining a list of pairs in each partition.
@@ -144,46 +146,87 @@ public final class Search extends ComponentDefinition {
         @Override
         public void handle(WebRequest event) {
 
+            webRequestEvent = event;
             String[] args = event.getTarget().split("-");
 
             logger.debug("Handling Webpage Request");
             WebResponse response;
             if (args[0].compareToIgnoreCase("search") == 0) {
                 response = new WebResponse(searchPageHtml(args[1]), event, 1, 1);
+                trigger(response, webPort);
             } else if (args[0].compareToIgnoreCase("add") == 0) {
                 if (leader == null) {
                     //trigger discovery
-                    //trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), args[1], self), networkPort);
+                    trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), args[1], self), networkPort);
                     //wait for response
                 } else {
                     if (leader.getId() == self.getId()) {
-                        //trigger event to add entry to neighbours
+                        //trigger event to add entry to neighbours 
+                        //propagate to neighbors
+                        for (Address p : neighbours) {
+                            trigger(new PropagateEntryFromLeader(self, p, args[1], indexId, self), networkPort);
+                        }
                         //wait for response
+                        response = new WebResponse(addEntryHtml(args[1], indexId), event, 1, 1);
+                        trigger(response, webPort);
+                        //Increment indexId
+                        indexId++;
                     } else {
                         //trigger event to send the add to the leader
+                        trigger(new AddEntryInLeader(self, leader, args[1], self), networkPort);
                         //wait for response
                     }
                 }
                 // the rest has to be moved...
-                response = new WebResponse(addEntryHtml(args[1], Integer.parseInt(args[2])), event, 1, 1);
+                //response = new WebResponse(addEntryHtml(args[1], Integer.parseInt(args[2])), event, 1, 1);
             } else {
                 response = new WebResponse(searchPageHtml(event
                         .getTarget()), event, 1, 1);
+                trigger(response, webPort);
             }
-            trigger(response, webPort);
         }
     };
     Handler<AddEntryInLeader> handleAddEntryInLeader = new Handler<AddEntryInLeader>() {
         @Override
         public void handle(AddEntryInLeader event) {
-            if(leader==null){
-                //trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), event.getTextEntry(), event.getEntryPeer()), networkPort);
+            String textEntry = event.getTextEntry();
+            if (leader == null) {
+                trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer()), networkPort);
+            } else if (leader.getId() != self.getId()) {
+                trigger(new AddEntryInLeader(self, leader, textEntry, event.getEntryPeer()), networkPort);
+            } else {
+                //We are the leader
+                //Add entry to self index
+                try {
+                    addEntry(textEntry, indexId);
+                } catch (IOException ex) {
+                    java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                //propagate to neighbors
+                for (Address p : neighbours) {
+                    trigger(new PropagateEntryFromLeader(self, p, textEntry, indexId, event.getEntryPeer()), networkPort);
+                }
+                //Send response to entryPeer
+                trigger(new PropagateEntryFromLeader(self, event.getEntryPeer(), textEntry, indexId, event.getEntryPeer()), networkPort);
+                //Increment indexId
+                indexId++;
             }
         }
     };
     Handler<PropagateEntryFromLeader> handlePropagateEntryFromLeader = new Handler<PropagateEntryFromLeader>() {
         @Override
         public void handle(PropagateEntryFromLeader event) {
+            //Add entry to self index
+            if (self.getId() != event.getEntryPeer().getId()) {
+                try {
+                    addEntry(event.getTextEntry(), event.getIndexId());
+                } catch (IOException ex) {
+                    java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            } else {
+                WebResponse response = new WebResponse(addEntryHtml(event.getTextEntry(), event.getIndexId()), webRequestEvent, 1, 1);
+                trigger(response, webPort);
+            }
         }
     };
 
@@ -431,7 +474,7 @@ public final class Search extends ComponentDefinition {
     }
 
     /**
-     * Called by null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
+     * Called by null null null null null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
      * handleMissingIndexEntriesRequest}
      *
      * @return List of IndexEntries at this node great than max
@@ -657,19 +700,16 @@ public final class Search extends ComponentDefinition {
 
     }
 
-
-    private Address highestRankingNeighbor(ArrayList <Address> neighbors) {
+    private Address highestRankingNeighbor(ArrayList<Address> neighbors) {
         Address highest = neighbors.get(0);
-        for (Address p : neighbors){
-            if(p.getId() > highest.getId()){
-            highest = p;
+        for (Address p : neighbors) {
+            if (p.getId() > highest.getId()) {
+                highest = p;
             }
         }
         return highest;
     }
 
-
-    
     private int nextMissingIndexEntry() {
         IndexReader reader = null;
         IndexSearcher searcher = null;

@@ -15,13 +15,13 @@ import se.sics.kompics.network.Message;
 public class PropagateEntryFromLeader extends Message {
 
     String textEntry;
-    int id;
+    int indexId;
     Address entryPeer;
 
     public PropagateEntryFromLeader(Address source, Address destination, String textEntry, int id, Address entryPeer) {
         super(source, destination);
         this.textEntry = textEntry;
-        this.id = id;
+        this.indexId = id;
         this.entryPeer = entryPeer;
     }
 
@@ -29,8 +29,8 @@ public class PropagateEntryFromLeader extends Message {
         return textEntry;
     }
 
-    public int getId() {
-        return id;
+    public int getIndexId() {
+        return indexId;
     }
     
     public Address getEntryPeer() {
