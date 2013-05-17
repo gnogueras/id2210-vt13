@@ -85,7 +85,7 @@ public final class Search extends ComponentDefinition {
     int lastMissingIndexEntry = 1;
     int maxIndexEntry = 1;
     Address leader = null;
-    int indexId=1;
+    int indexId = 1;
     WebRequest webRequestEvent;
     Random random;
     // When you partition the index you need to find new nodes
@@ -114,6 +114,8 @@ public final class Search extends ComponentDefinition {
         subscribe(handleMissingIndexEntriesResponse, networkPort);
         subscribe(handleTManSample, tmanPort);
         subscribe(handleCurrentLeaderEvent, leaderSelectionPort);
+        subscribe(handleAddEntryInLeader, networkPort);
+        subscribe(handlePropagateEntryFromLeader, networkPort);
 
     }
 //-------------------------------------------------------------------	
@@ -157,6 +159,7 @@ public final class Search extends ComponentDefinition {
             } else if (args[0].compareToIgnoreCase("add") == 0) {
                 if (leader == null) {
                     //trigger discovery
+                    logger.info(self.getId() + " - ADD REQUEST. LEADER IS NULL. HighestPeer={} text={}", highestRankingNeighbor(neighbours), args[1]);
                     trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), args[1], self), networkPort);
                     //wait for response
                 } else {
@@ -169,10 +172,13 @@ public final class Search extends ComponentDefinition {
                         //wait for response
                         response = new WebResponse(addEntryHtml(args[1], indexId), event, 1, 1);
                         trigger(response, webPort);
+                        //Update pointers
+                        updateIndexPointers(indexId);
                         //Increment indexId
                         indexId++;
                     } else {
                         //trigger event to send the add to the leader
+                        logger.info(self.getId() + " - ADD REQUEST. LEADER KNOWN. leader={} text={}", leader.getId(), args[1]);
                         trigger(new AddEntryInLeader(self, leader, args[1], self), networkPort);
                         //wait for response
                     }
@@ -191,14 +197,18 @@ public final class Search extends ComponentDefinition {
         public void handle(AddEntryInLeader event) {
             String textEntry = event.getTextEntry();
             if (leader == null) {
+                logger.info(self.getId() + " - HADNLER_ADD. LEADER IS NULL. HighestPeer={} text={}", highestRankingNeighbor(neighbours), textEntry);
                 trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer()), networkPort);
             } else if (leader.getId() != self.getId()) {
+                logger.info(self.getId() + " - HADNLER_ADD. LEADER KNOWN. leader={} text={}", leader, textEntry);
                 trigger(new AddEntryInLeader(self, leader, textEntry, event.getEntryPeer()), networkPort);
             } else {
                 //We are the leader
+                logger.info(self.getId() + " - HADNLER_ADD. I AM THE LEADER. entryPeer={} text={}", event.getEntryPeer(), textEntry);
                 //Add entry to self index
                 try {
                     addEntry(textEntry, indexId);
+                    updateIndexPointers(indexId);
                 } catch (IOException ex) {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -207,7 +217,9 @@ public final class Search extends ComponentDefinition {
                     trigger(new PropagateEntryFromLeader(self, p, textEntry, indexId, event.getEntryPeer()), networkPort);
                 }
                 //Send response to entryPeer
-                trigger(new PropagateEntryFromLeader(self, event.getEntryPeer(), textEntry, indexId, event.getEntryPeer()), networkPort);
+                if (!neighbours.contains(event.getEntryPeer())) {
+                    trigger(new PropagateEntryFromLeader(self, event.getEntryPeer(), textEntry, indexId, event.getEntryPeer()), networkPort);
+                }
                 //Increment indexId
                 indexId++;
             }
@@ -218,13 +230,17 @@ public final class Search extends ComponentDefinition {
         public void handle(PropagateEntryFromLeader event) {
             //Add entry to self index
             if (self.getId() != event.getEntryPeer().getId()) {
+                logger.info(self.getId() + " - HADNLER_PROP. NOT PEER ENTRY. peerEntry={} text={}", event.getEntryPeer(), event.getTextEntry());
                 try {
                     addEntry(event.getTextEntry(), event.getIndexId());
+                    updateIndexPointers(event.getIndexId());
                 } catch (IOException ex) {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                 }
             } else {
+                logger.info(self.getId() + " - HADNLER_PROP. I AM PEER ENTRY. peerEntry={} text={}", event.getEntryPeer(), event.getTextEntry());
                 WebResponse response = new WebResponse(addEntryHtml(event.getTextEntry(), event.getIndexId()), webRequestEvent, 1, 1);
+                updateIndexPointers(event.getIndexId());
                 trigger(response, webPort);
             }
         }
@@ -474,7 +490,7 @@ public final class Search extends ComponentDefinition {
     }
 
     /**
-     * Called by null null null null null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
+     * Called by null null null null null null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
      * handleMissingIndexEntriesRequest}
      *
      * @return List of IndexEntries at this node great than max
