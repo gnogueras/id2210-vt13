@@ -87,6 +87,7 @@ public final class Search extends ComponentDefinition {
     Address leader = null;
     int indexId = 1;
     WebRequest webRequestEvent;
+    static int messageIndexCounter = 0;
     Random random;
     // When you partition the index you need to find new nodes
     // This is a routing table maintaining a list of pairs in each partition.
@@ -162,6 +163,7 @@ public final class Search extends ComponentDefinition {
                 if (leader == null) {
                     //trigger discovery
                     logger.info(self.getId() + " - ADD REQUEST. LEADER IS NULL. HighestPeer={} text={}", highestRankingNeighbor(neighbours), args[1]);
+                    logger.info("$$$$ - " + self.getId() + " - Discover process starts for peer: {} $$$$", self.getId());
                     trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), args[1], self), networkPort);
                     //wait for response
                 } else {
@@ -206,6 +208,7 @@ public final class Search extends ComponentDefinition {
                 trigger(new AddEntryInLeader(self, leader, textEntry, event.getEntryPeer()), networkPort);
             } else {
                 //We are the leader
+                logger.info("$$$$ - " + self.getId() + " - Discover process finishes for peer: {}  $$$$", event.getEntryPeer());
                 logger.info(self.getId() + " - HADNLER_ADD. I AM THE LEADER. entryPeer={} text={}", event.getEntryPeer(), textEntry);
                 //Add entry to self index
                 try {
@@ -351,6 +354,13 @@ public final class Search extends ComponentDefinition {
         w.addDocument(doc);
         w.close();
         Snapshot.incNumIndexEntries(self);
+        if(leader==null){
+            logger.info("$$$$ - " + self.getId() + " - No Leader add entry:({},{})  $$$$", title, id);
+        }else if(self.getId()!=leader.getId()){
+            logger.info("$$$$ - " + self.getId() + " - No Leader add entry:({},{})  $$$$", title, id);
+        }else{
+            logger.info("$$$$ - " + self.getId() + " - Leader add entry:({},{})  $$$$", title, id);
+        }
     }
 
     private String query(StringBuilder sb, String querystr) throws ParseException, IOException {
@@ -415,6 +425,7 @@ public final class Search extends ComponentDefinition {
              }*/
 
             trigger(req, networkPort);
+            messageIndexCounter++;
         }
     };
 
@@ -607,7 +618,7 @@ public final class Search extends ComponentDefinition {
              + "          Id:{}   {}", e.getIndexId(), e.getText());
              }*/
             trigger(response, networkPort);
-
+            messageIndexCounter++;
         }
     };
     Handler<MissingIndexEntries.Response> handleMissingIndexEntriesResponse = new Handler<MissingIndexEntries.Response>() {
@@ -639,6 +650,7 @@ public final class Search extends ComponentDefinition {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                     throw new IllegalArgumentException(ex.getMessage());
                 }
+                logger.info("$$$$ - " + self.getId() + " - entry added:({})  messageCounter={}  $$$$", e.getText(), messageIndexCounter);
             }
 
             /*logger.info(self.getId()

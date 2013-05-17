@@ -34,7 +34,7 @@ public class LeaderSelection extends ComponentDefinition {
     static Address leader = null;
     ArrayList<Address> tmanPartners, previousPartners;
     final int CONVERGENCE_THRESHOLD = 15;
-    int convergenceCounter;
+    int convergenceCounter, absolutCounter;
     int instance=0;
     int numberOfComparedPeers;
     int instanceRunning = 0;
@@ -51,6 +51,7 @@ public class LeaderSelection extends ComponentDefinition {
         public void handle(LeaderSelectionInit event) {
             self = event.getSelf();
             convergenceCounter = 0;
+            absolutCounter = 0;
             tmanPartners = new ArrayList<Address>();
             previousPartners = new ArrayList<Address>();
         }
@@ -74,8 +75,10 @@ public class LeaderSelection extends ComponentDefinition {
             } else {
                 convergenceCounter = 0;
             }
+            absolutCounter++;
             logger.info("\n****** "+self.getId() + " - COUNTER = {}  \n InstanceRunning={} \n", convergenceCounter, instanceRunning);
             if (convergenceCounter == CONVERGENCE_THRESHOLD && leader == null && instanceRunning==0) {
+                logger.info("\n$$$$$ - "+self.getId() + " - ConvergenceCounter = {}  AbsoulteCounter={} $$$$$\n", convergenceCounter, absolutCounter);
                 ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(tmanPartners);
                 if (higherIdNeighbors.isEmpty()) {
                     trigger(new StartMonitoring(tmanPartners), epfdPort);
