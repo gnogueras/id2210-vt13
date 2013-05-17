@@ -5,20 +5,24 @@
 package search.system.peer.search;
 
 import se.sics.kompics.Event;
+import se.sics.kompics.address.Address;
+import se.sics.kompics.network.Message;
 
 /**
  *
  * @author Nicolae
  */
-public class PropagateEntryFromLeader extends Event {
+public class PropagateEntryFromLeader extends Message {
 
     String textEntry;
     int id;
+    Address entryPeer;
 
-    public PropagateEntryFromLeader(String textEntry, int id) {
-        super();
+    public PropagateEntryFromLeader(Address source, Address destination, String textEntry, int id, Address entryPeer) {
+        super(source, destination);
         this.textEntry = textEntry;
         this.id = id;
+        this.entryPeer = entryPeer;
     }
 
     public String getTextEntry() {
@@ -27,5 +31,9 @@ public class PropagateEntryFromLeader extends Event {
 
     public int getId() {
         return id;
+    }
+    
+    public Address getEntryPeer() {
+        return entryPeer;
     }
 }

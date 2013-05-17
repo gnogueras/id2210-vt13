@@ -83,10 +83,7 @@ public final class Search extends ComponentDefinition {
     IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_42, analyzer);
     int lastMissingIndexEntry = 1;
     int maxIndexEntry = 1;
-
     Address leader = null;
-
-
     Random random;
     // When you partition the index you need to find new nodes
     // This is a routing table maintaining a list of pairs in each partition.
@@ -107,7 +104,7 @@ public final class Search extends ComponentDefinition {
 
         subscribe(handleInit, control);
         subscribe(handleWebRequest, webPort);
-        subscribe(handleCyclonSample, cyclonSamplePort);
+        //subscribe(handleCyclonSample, cyclonSamplePort);
         subscribe(handleAddIndexText, indexPort);
         subscribe(handleUpdateIndexTimeout, timerPort);
         subscribe(handleMissingIndexEntriesRequest, networkPort);
@@ -155,12 +152,12 @@ public final class Search extends ComponentDefinition {
             } else if (args[0].compareToIgnoreCase("add") == 0) {
                 if (leader == null) {
                     //trigger discovery
-                    //wait for response
+                    //trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), null, leader)) //wait for response
                 } else {
                     if (leader.getId() == self.getId()) {
                         //trigger event to add entry to neighbours
                         //wait for response
-                    }else{
+                    } else {
                         //trigger event to send the add to the leader
                         //wait for response
                     }
@@ -292,10 +289,10 @@ public final class Search extends ComponentDefinition {
                     missingIndexEntries);
 
             /*logger.info(self.getId()
-                    + " - REQUEST: Ranges of entries requested: ");
-            for (Range r : missingIndexEntries) {
-                logger.info(self.getId() + "        [{},{}]", r.getLower(), r.getUpper());
-            }*/
+             + " - REQUEST: Ranges of entries requested: ");
+             for (Range r : missingIndexEntries) {
+             logger.info(self.getId() + "        [{},{}]", r.getLower(), r.getUpper());
+             }*/
 
             trigger(req, networkPort);
         }
@@ -421,7 +418,7 @@ public final class Search extends ComponentDefinition {
     }
 
     /**
-     * Called by null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
+     * Called by null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
      * handleMissingIndexEntriesRequest}
      *
      * @return List of IndexEntries at this node great than max
@@ -473,21 +470,21 @@ public final class Search extends ComponentDefinition {
             for (Range r : event.getMissingRanges()) {
                 res.addAll(getMissingIndexEntries(r));
             }
-            
+
             // TODO send missing index entries back to requester
             MissingIndexEntries.Response response = new MissingIndexEntries.Response(self, event.getSource(), res);
             /*logger.info(self.getId()
-                    + " - Ranges from peer:{}", event.getSource().getId());
-            for (Range r : event.getMissingRanges()) {
-                logger.info(self.getId()
-                        + "          Range: [{} , {}]", r.getLower(), r.getUpper());
-            }
-            logger.info(self.getId()
-                    + " - SEND RESPONSE with {} entries to peer:{}", res.size(), event.getSource().getId());
-            for (IndexEntry e : res) {
-                logger.info(self.getId()
-                        + "          Id:{}   {}", e.getIndexId(), e.getText());
-            }*/
+             + " - Ranges from peer:{}", event.getSource().getId());
+             for (Range r : event.getMissingRanges()) {
+             logger.info(self.getId()
+             + "          Range: [{} , {}]", r.getLower(), r.getUpper());
+             }
+             logger.info(self.getId()
+             + " - SEND RESPONSE with {} entries to peer:{}", res.size(), event.getSource().getId());
+             for (IndexEntry e : res) {
+             logger.info(self.getId()
+             + "          Id:{}   {}", e.getIndexId(), e.getText());
+             }*/
             trigger(response, networkPort);
 
         }
@@ -499,19 +496,19 @@ public final class Search extends ComponentDefinition {
             List<IndexEntry> entries = event.getEntries();
 
             /*if (entries.isEmpty()) {
-                logger.info(self.getId()
-                        + " - RESPONSE. Number of entries received {}", entries.size());
-                return;
-            }*/
+             logger.info(self.getId()
+             + " - RESPONSE. Number of entries received {}", entries.size());
+             return;
+             }*/
 
             /*logger.info(self.getId()
-                    + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
+             + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
             for (IndexEntry e : entries) {
                 /*logger.info(self.getId()
                  + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
                 updateIndexPointers(e.getIndexId());
                 /*logger.info(self.getId()
-                        + " - RESPONSE. Adding index entry: {} Id={}", e.getText(), e.getIndexId());*/
+                 + " - RESPONSE. Adding index entry: {} Id={}", e.getText(), e.getIndexId());*/
                 /*logger.info(self.getId()
                  + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
 
@@ -524,10 +521,10 @@ public final class Search extends ComponentDefinition {
             }
 
             /*logger.info(self.getId()
-                    + " - UPDATE POINTERS. lastMissingIndexEntry:{}  maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
+             + " - UPDATE POINTERS. lastMissingIndexEntry:{}  maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
             
-            logger.info(self.getId()
-                    + " - RESPONSE. {} entries added to my index from Response of peer:{}", entries.size(), event.getSource().getId());*/
+             logger.info(self.getId()
+             + " - RESPONSE. {} entries added to my index from Response of peer:{}", entries.size(), event.getSource().getId());*/
         }
     };
     Handler<CyclonSample> handleCyclonSample = new Handler<CyclonSample>() {
@@ -585,24 +582,32 @@ public final class Search extends ComponentDefinition {
         @Override
         public void handle(TManSample event) {
             // receive a new list of neighbours
-            List<Address> sampleNodes = event.getSample();
+            neighbours.clear();
+            neighbours.addAll(event.getSample());
 
-            if (sampleNodes.size() > 0) {
+            if (neighbours.size() > 0) {
                 logger.info("Search component {} received {} samples from TMan.",
-                        self.getId(), sampleNodes.size());
+                        self.getId(), neighbours.size());
             }
 
-            //PeerAddress selfPeerAddress = new PeerAddress(self.getPeerAddress(), self.getPeerId());
-            /*
-             Component bully = create(Bully.class);
-             logger.info("initializing bully with {} nodes and self peer address {}.",
-             sampleNodes, self);
-            
-             BullyInit bullyinit = new BullyInit(sampleNodes, self);
-             trigger(bullyinit, bully.control());
-             int instance = self.getId();
-             trigger(new SelectNewLeader(self, instance), bullyPort);
-             */
+            // update routing tables
+            for (Address p : neighbours) {
+                int partition = p.getId() % searchConfiguration.getNumPartitions();
+                List<PeerDescriptor> nodes = routingTable.get(partition);
+                if (nodes == null) {
+                    nodes = new ArrayList<PeerDescriptor>();
+                    routingTable.put(partition, nodes);
+                }
+                // Note - this might replace an existing entry in Lucene
+                nodes.add(new PeerDescriptor(p));
+                // keep the freshest descriptors in this partition
+                Collections.sort(nodes, peerAgeComparator);
+                List<PeerDescriptor> nodesToRemove = new ArrayList<PeerDescriptor>();
+                for (int i = nodes.size(); i > searchConfiguration.getMaxNumRoutingEntries(); i--) {
+                    nodesToRemove.add(nodes.get(i - 1));
+                }
+                nodes.removeAll(nodesToRemove);
+            }
         }
     };
     Handler<CurrentLeaderEvent> handleCurrentLeaderEvent = new Handler<CurrentLeaderEvent>() {
