@@ -18,8 +18,6 @@ import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.CancelTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timer;
-import search.epfd.Suspect;
-import search.epfd.EPFDPort;
 
 /**
  *

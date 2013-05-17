@@ -1,6 +1,5 @@
 package search.system.peer.search;
 
-import search.simulator.snapshot.Snapshot;
 import common.configuration.SearchConfiguration;
 import cyclon.system.peer.cyclon.CyclonSample;
 import cyclon.system.peer.cyclon.CyclonSamplePort;
@@ -39,7 +38,6 @@ import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.Version;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.sics.kompics.Component;
 
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
@@ -52,12 +50,8 @@ import se.sics.kompics.timer.Timer;
 import se.sics.kompics.web.Web;
 import se.sics.kompics.web.WebRequest;
 import se.sics.kompics.web.WebResponse;
-import search.bully.Bully;
-import search.bully.BullyInit;
-import search.bully.BullyPort;
 import search.bully.CurrentLeaderEvent;
 import search.bully.LeaderSelectionPort;
-import search.bully.NewInstance;
 import search.simulator.snapshot.Snapshot;
 import search.system.peer.AddIndexText;
 import search.system.peer.IndexPort;
