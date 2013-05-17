@@ -6,18 +6,19 @@ package search.system.peer.search;
 
 import se.sics.kompics.address.Address;
 import se.sics.kompics.Event;
+import se.sics.kompics.network.Message;
 
 /**
  *
  * @author Nicolae
  */
-public class AddEntryInLeader extends Event {
+public class AddEntryInLeader extends Message {
 
     String textEntry;
     Address entryPeer;
 
-    public AddEntryInLeader(String textEntry, Address entryPeer) {
-        super();
+    public AddEntryInLeader(Address source, Address destination, String textEntry, Address entryPeer) {
+        super(source, destination);
         this.textEntry = textEntry;
         this.entryPeer = entryPeer;
     }
