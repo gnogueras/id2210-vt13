@@ -116,6 +116,8 @@ public final class Search extends ComponentDefinition {
         subscribe(handleCurrentLeaderEvent, leaderSelectionPort);
         subscribe(handleAddEntryInLeader, networkPort);
         subscribe(handlePropagateEntryFromLeader, networkPort);
+        subscribe(handleAddEntryInLeaderSimulation, networkPort);
+        subscribe(handlePropagateEntryFromLeaderSimulation, networkPort);
 
     }
 //-------------------------------------------------------------------	
@@ -225,6 +227,36 @@ public final class Search extends ComponentDefinition {
             }
         }
     };
+    Handler<AddEntryInLeaderSimulation> handleAddEntryInLeaderSimulation = new Handler<AddEntryInLeaderSimulation>() {
+        @Override
+        public void handle(AddEntryInLeaderSimulation event) {
+            String textEntry = event.getTextEntry();
+            if (leader == null) {
+                trigger(new AddEntryInLeaderSimulation(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer()), networkPort);
+            } else if (leader.getId() != self.getId()) {
+                trigger(new AddEntryInLeaderSimulation(self, leader, textEntry, event.getEntryPeer()), networkPort);
+            } else {
+                //We are the leader
+                //Add entry to self index
+                try {
+                    addEntry(textEntry, indexId);
+                    updateIndexPointers(indexId);
+                } catch (IOException ex) {
+                    java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                //propagate to neighbors
+                for (Address p : neighbours) {
+                    trigger(new PropagateEntryFromLeaderSimulation(self, p, textEntry, indexId, event.getEntryPeer()), networkPort);
+                }
+                //Send response to entryPeer
+                if (!neighbours.contains(event.getEntryPeer())) {
+                    trigger(new PropagateEntryFromLeaderSimulation(self, event.getEntryPeer(), textEntry, indexId, event.getEntryPeer()), networkPort);
+                }
+                //Increment indexId
+                indexId++;
+            }
+        }
+    };
     Handler<PropagateEntryFromLeader> handlePropagateEntryFromLeader = new Handler<PropagateEntryFromLeader>() {
         @Override
         public void handle(PropagateEntryFromLeader event) {
@@ -242,6 +274,22 @@ public final class Search extends ComponentDefinition {
                 WebResponse response = new WebResponse(addEntryHtml(event.getTextEntry(), event.getIndexId()), webRequestEvent, 1, 1);
                 updateIndexPointers(event.getIndexId());
                 trigger(response, webPort);
+            }
+        }
+    };
+    Handler<PropagateEntryFromLeaderSimulation> handlePropagateEntryFromLeaderSimulation = new Handler<PropagateEntryFromLeaderSimulation>() {
+        @Override
+        public void handle(PropagateEntryFromLeaderSimulation event) {
+            //Add entry to self index
+
+            try {
+                addEntry(event.getTextEntry(), event.getIndexId());
+                updateIndexPointers(event.getIndexId());
+            } catch (IOException ex) {
+                java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            if (self.getId() == event.getEntryPeer().getId()) {
+                logger.info(self.getId() + " - Simulation add request. Adding index entry: {} Id={}", event.getTextEntry(), event.getIndexId());
             }
         }
     };
@@ -490,7 +538,8 @@ public final class Search extends ComponentDefinition {
     }
 
     /**
-     * Called by null null null null null null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
+     * Called by null null null null null null null null null null null null
+     * null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
      * handleMissingIndexEntriesRequest}
      *
      * @return List of IndexEntries at this node great than max
@@ -638,16 +687,42 @@ public final class Search extends ComponentDefinition {
     Handler<AddIndexText> handleAddIndexText = new Handler<AddIndexText>() {
         @Override
         public void handle(AddIndexText event) {
-            int id = LeaderEmulator.incIndexId();
-            updateIndexPointers(id);
-            logger.info(self.getId()
-                    + " - adding index entry: {} Id={}", event.getText(), id);
-            try {
-                addEntry(event.getText(), id);
-            } catch (IOException ex) {
-                java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
-                throw new IllegalArgumentException(ex.getMessage());
+
+            if (leader == null) {
+                //trigger discovery
+                logger.info(self.getId() + " - Simulation add request. LEADER IS NULL. HighestPeer={} text={}", highestRankingNeighbor(neighbours), event.getText());
+                trigger(new AddEntryInLeaderSimulation(self, highestRankingNeighbor(neighbours), event.getText(), self), networkPort);
+                //wait for response
+            } else {
+                if (leader.getId() == self.getId()) {
+                    //I am the leader
+                    //trigger event to add entry to neighbours 
+                    //propagate to neighbors
+                    for (Address p : neighbours) {
+                        trigger(new PropagateEntryFromLeaderSimulation(self, p, event.getText(), indexId, self), networkPort);
+                    }
+
+                    //Add entry to self index
+                    try {
+                        addEntry(event.getText(), indexId);
+                        logger.info(self.getId()
+                                + " - Simulation add request. Adding index entry: {} Id={}", event.getText(), indexId);
+                        //Update pointers
+                        updateIndexPointers(indexId);
+                        //Increment indexId
+                        indexId++;
+                    } catch (IOException ex) {
+                        java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
+                        throw new IllegalArgumentException(ex.getMessage());
+                    }
+                } else {
+                    //trigger event to send the add to the leader
+                    logger.info(self.getId() + " - Simulation add request. LEADER KNOWN. leader={} text={}", leader.getId(), event.getText());
+                    trigger(new AddEntryInLeaderSimulation(self, leader, event.getText(), self), networkPort);
+                    //wait for response
+                }
             }
+
         }
     };
     Handler<TManSample> handleTManSample = new Handler<TManSample>() {
