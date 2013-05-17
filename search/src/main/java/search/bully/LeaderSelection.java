@@ -33,7 +33,7 @@ public class LeaderSelection extends ComponentDefinition {
     Address self;
     static Address leader = null;
     ArrayList<Address> tmanPartners, previousPartners;
-    static final int CONVERGENCE_THRESHOLD = 15;
+    final int CONVERGENCE_THRESHOLD = 15;
     int convergenceCounter;
     int instance=0;
     int numberOfComparedPeers;
