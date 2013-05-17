@@ -55,6 +55,7 @@ import search.bully.LeaderSelectionPort;
 import search.simulator.snapshot.Snapshot;
 import search.system.peer.AddIndexText;
 import search.system.peer.IndexPort;
+import tman.system.peer.tman.ComparatorById;
 import tman.system.peer.tman.TManSample;
 import tman.system.peer.tman.TManSamplePort;
 
@@ -656,6 +657,19 @@ public final class Search extends ComponentDefinition {
 
     }
 
+
+    private Address highestRankingNeighbor(ArrayList <Address> neighbors) {
+        Address highest = neighbors.get(0);
+        for (Address p : neighbors){
+            if(p.getId() > highest.getId()){
+            highest = p;
+            }
+        }
+        return highest;
+    }
+
+
+    
     private int nextMissingIndexEntry() {
         IndexReader reader = null;
         IndexSearcher searcher = null;
