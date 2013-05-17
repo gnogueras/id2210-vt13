@@ -89,6 +89,10 @@ public final class Search extends ComponentDefinition {
     IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_42, analyzer);
     int lastMissingIndexEntry = 1;
     int maxIndexEntry = 1;
+
+    Address leader = null;
+
+
     Random random;
     // When you partition the index you need to find new nodes
     // This is a routing table maintaining a list of pairs in each partition.
@@ -155,6 +159,21 @@ public final class Search extends ComponentDefinition {
             if (args[0].compareToIgnoreCase("search") == 0) {
                 response = new WebResponse(searchPageHtml(args[1]), event, 1, 1);
             } else if (args[0].compareToIgnoreCase("add") == 0) {
+                if (leader == null) {
+                    //trigger discovery
+                    //wait for response
+                } else {
+                    if (leader.getId() == self.getId()) {
+                        //trigger event to add entry to neighbours
+                        //wait for response
+                    }else{
+                        //trigger event to send the add to the leader
+                        //wait for response
+                    }
+                }
+
+                // the rest has to be moved...
+
                 response = new WebResponse(addEntryHtml(args[1], Integer.parseInt(args[2])), event, 1, 1);
             } else {
                 response = new WebResponse(searchPageHtml(event
@@ -596,6 +615,7 @@ public final class Search extends ComponentDefinition {
         @Override
         public void handle(CurrentLeaderEvent event) {
             //New Leader has been selected
+            leader = event.getLeader();
             logger.info(self.getId()
                     + " - NEW LEADER has been selected in instance {}. LeaderId: {} ", event.getInstance(), event.getLeader());
 

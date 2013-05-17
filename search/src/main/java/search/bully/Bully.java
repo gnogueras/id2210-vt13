@@ -70,18 +70,18 @@ public class Bully extends ComponentDefinition {
             neighbors = event.getNeighbors();
             logger.info("Node {} got a select new leader request from instance {}",
                     self.getId(), event.getInstance());
-            ArrayList<Address> lowerIdNeighbors = selectLowerIdNeighbors(neighbors);
-            if (lowerIdNeighbors.isEmpty()) {
+            ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(neighbors);
+            if (higherIdNeighbors.isEmpty()) {
                 //trigger COORDINATOR
                 broadcastCoordinator(neighbors, event.getInstance());
                 trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
             } else {
-                /*broadcastElection(lowerIdNeighbors, event.getInstance());
+                broadcastElection(higherIdNeighbors, event.getInstance());
                 //trigger timeout
                 ScheduleTimeout stAnswer = new ScheduleTimeout(delay);
                 stAnswer.setTimeoutEvent(new NoAnswerTimeout(stAnswer, event.getInstance()));
                 answerTimeoutId = stAnswer.getTimeoutEvent().getTimeoutId();
-                trigger(stAnswer, timerPort);*/
+                trigger(stAnswer, timerPort);
             }
         }
     };
@@ -89,10 +89,10 @@ public class Bully extends ComponentDefinition {
         @Override
         public void handle(Election event) {
             // For consistency, when comparing: first self.getPeerId, second BigInteger to compare with
-            // Send reply if self has lower id than proposed leader
+            // Send reply if self has higher id than proposed leader
             logger.info("ELECTION: Node {} got a Election from node {}",
                     self.getId(), event.getSource().getId());
-            if (self.getId() < event.getSource().getId()) {
+            if (self.getId() > event.getSource().getId()) {
                 trigger(new Answer(self, event.getSource(), event.getInstance()), networkPort);
             }
         }
@@ -119,8 +119,8 @@ public class Bully extends ComponentDefinition {
             //If no Coordinator message, resend the Election message again
             logger.info("TIMEOUT COORDINATION EXPIRATION: Node {}",
                     self.getId());
-            ArrayList<Address> lowerIdNeighbors = selectLowerIdNeighbors(neighbors);
-            broadcastElection(lowerIdNeighbors, event.getInstance());
+            ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(neighbors);
+            broadcastElection(higherIdNeighbors, event.getInstance());
         }
     };
     Handler<NoAnswerTimeout> handleNoAnswerTimeout = new Handler<NoAnswerTimeout>() {
@@ -144,19 +144,19 @@ public class Bully extends ComponentDefinition {
         }
     };
 
-    //Select peers from the neighbor list with lower id
-    //CHANGES: change the name to selectLowerIdNeighbors
+    //Select peers from the neighbor list with higher id
+    //CHANGES: change the name to selectHigherIdNeighbors
     // -1 instead of 1 
     // For consistency, when comparing: first self.getPeerId, second BigInteger to compare with
-    private ArrayList<Address> selectLowerIdNeighbors(ArrayList<Address> neighbors) {
-        ArrayList<Address> lowerIdNeighbors = new ArrayList<Address>();
+    private ArrayList<Address> selectHigherIdNeighbors(ArrayList<Address> neighbors) {
+        ArrayList<Address> higherIdNeighbors = new ArrayList<Address>();
         for (Address peer : neighbors) {
-            // Add peer to lowerIdNeighbors list if self.getId > peer.getId
-            if (self.getId() > peer.getId()) {
-                lowerIdNeighbors.add(peer);
+            // Add peer to higherIdNeighbors list if self.getId > peer.getId
+            if (self.getId() < peer.getId()) {
+                higherIdNeighbors.add(peer);
             }
         }
-        return lowerIdNeighbors;
+        return higherIdNeighbors;
     }
 
     //Broadcast message m to the set of peers

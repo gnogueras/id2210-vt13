@@ -35,9 +35,9 @@ public class LeaderSelection extends ComponentDefinition {
     ArrayList<Address> tmanPartners, previousPartners;
     static final int CONVERGENCE_THRESHOLD = 15;
     int convergenceCounter;
-    static int instance=0;
+    int instance=0;
     int numberOfComparedPeers;
-    static int instanceRunning = 0;
+    int instanceRunning = 0;
 
     public LeaderSelection() {
         super();
@@ -50,7 +50,6 @@ public class LeaderSelection extends ComponentDefinition {
     Handler<LeaderSelectionInit> initHandler = new Handler<LeaderSelectionInit>() {
         public void handle(LeaderSelectionInit event) {
             self = event.getSelf();
-            //leader = null;
             convergenceCounter = 0;
             tmanPartners = new ArrayList<Address>();
             previousPartners = new ArrayList<Address>();
@@ -76,14 +75,15 @@ public class LeaderSelection extends ComponentDefinition {
                 convergenceCounter = 0;
             }
             logger.info("\n****** "+self.getId() + " - COUNTER = {}  \n InstanceRunning={} \n", convergenceCounter, instanceRunning);
-
             if (convergenceCounter == CONVERGENCE_THRESHOLD && leader == null && instanceRunning==0) {
-
-                trigger(new StartMonitoring(tmanPartners), epfdPort);
-                trigger(new NewInstance(self, instance, tmanPartners), bullyPort);
-                instanceRunning = 1;
-                instance++;
-            logger.info("\n****** "+self.getId() + " - INSTANCENUMBER = {} \n", instance);
+                ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(tmanPartners);
+                if (higherIdNeighbors.isEmpty()) {
+                    trigger(new StartMonitoring(tmanPartners), epfdPort);
+                    trigger(new NewInstance(self, instance, tmanPartners), bullyPort);
+                    instanceRunning = 1;
+                    instance++;
+                    logger.info("\n****** "+self.getId() + " - INSTANCENUMBER = {} \n", instance);
+                }
             }
         }
     };
@@ -121,4 +121,21 @@ public class LeaderSelection extends ComponentDefinition {
         }
         return true;
     }
+
+        //Select peers from the neighbor list with higher id
+    //CHANGES: change the name to selectHigherIdNeighbors
+    // -1 instead of 1
+    // For consistency, when comparing: first self.getPeerId, second BigInteger to compare with
+    private ArrayList<Address> selectHigherIdNeighbors(ArrayList<Address> neighbors) {
+        ArrayList<Address> higherIdNeighbors = new ArrayList<Address>();
+        for (Address peer : neighbors) {
+            // Add peer to higherIdNeighbors list if self.getId > peer.getId
+            if (self.getId() < peer.getId()) {
+                higherIdNeighbors.add(peer);
+            }
+        }
+        return higherIdNeighbors;
+    }
+
+
 }
