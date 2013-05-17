@@ -47,7 +47,7 @@ public class Bully extends ComponentDefinition {
         subscribe(handleCoordinator, networkPort);
         subscribe(handleNoCoordinationTimeout, timerPort);
         subscribe(handleNoAnswerTimeout, timerPort);
-        
+
         //subscribe(handleCrash, pfdPort);
     }
     Handler<BullyInit> handleInit = new Handler<BullyInit>() {
@@ -104,7 +104,7 @@ public class Bully extends ComponentDefinition {
             //resent Election message.
             logger.info("ANSWER: Node {} got a Answer from node {}",
                     self.getId(), event.getSource().getId());
-            if (gotAnswer==false){
+            if (gotAnswer == false) {
                 gotAnswer = true;
                 trigger(new CancelTimeout(answerTimeoutId), timerPort);
                 ScheduleTimeout stCoordination = new ScheduleTimeout(delay);
@@ -121,12 +121,17 @@ public class Bully extends ComponentDefinition {
                     self.getId());
             ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(neighbors);
             broadcastElection(higherIdNeighbors, event.getInstance());
+            //trigger timeout
+            ScheduleTimeout stAnswer = new ScheduleTimeout(delay);
+            stAnswer.setTimeoutEvent(new NoAnswerTimeout(stAnswer, event.getInstance()));
+            answerTimeoutId = stAnswer.getTimeoutEvent().getTimeoutId();
+            trigger(stAnswer, timerPort);
         }
     };
     Handler<NoAnswerTimeout> handleNoAnswerTimeout = new Handler<NoAnswerTimeout>() {
         public void handle(NoAnswerTimeout event) {
             //If no Coordinator message, resend the Election message again
-            logger.info("TIMEOUT ANSWER EXPIRATION: Node {}", self.getId());            
+            logger.info("TIMEOUT ANSWER EXPIRATION: Node {}", self.getId());
             broadcastCoordinator(neighbors, event.getInstance());
             // inform own instance that it's the leader
             trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
@@ -166,6 +171,7 @@ public class Bully extends ComponentDefinition {
         }
     }
     //Broadcast message m to the set of peers
+
     private void broadcastCoordinator(ArrayList<Address> peers, int instance) {
         for (Address peer : peers) {
             trigger(new Coordinator(self, peer, instance), networkPort);
