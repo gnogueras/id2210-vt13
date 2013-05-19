@@ -75,6 +75,7 @@ public final class SearchPeer extends ComponentDefinition {
         connect(timer, cyclon.getNegative(Timer.class));
         connect(timer, bootstrap.getNegative(Timer.class));
         connect(timer, tman.getNegative(Timer.class));
+        connect(timer, leaderSelection.getNegative(Timer.class));
         connect(webPort, search.getPositive(Web.class));
         connect(cyclon.getPositive(CyclonSamplePort.class),
                 search.getNegative(CyclonSamplePort.class));

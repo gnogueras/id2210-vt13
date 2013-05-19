@@ -13,6 +13,7 @@ import se.sics.kompics.PortType;
 public class EPFDPort extends PortType{
     {
         request(StartMonitoring.class);
+        request(CrashSimulation.class);
         indication(Suspect.class);
         indication(Restore.class);
     }
