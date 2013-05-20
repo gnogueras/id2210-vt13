@@ -89,13 +89,14 @@ public class LeaderSelection extends ComponentDefinition {
             absolutCounter++;
             //logger.info("\n****** " + self.getId() + " - COUNTER = {}  \n InstanceRunning={} \n", convergenceCounter, instanceRunning);
             if (convergenceCounter == CONVERGENCE_THRESHOLD && leader == null && instanceRunning == 0) {
-                logger.info("$$$$$ - " + self.getId() + " - ConvergenceCounter = {}  AbsoulteCounter={} $$$$$\n", convergenceCounter, absolutCounter);
+                
                 ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(tmanPartners);
                 if (higherIdNeighbors.isEmpty()) {
+                    logger.info("$$$$$ - " + self.getId() + " - ConvergenceCounter = {}  AbsoulteCounter={} $$$$$\n", convergenceCounter, absolutCounter);
                     trigger(new NewInstance(self, instance, tmanPartners), bullyPort);
                     instanceRunning = 1;
                     instance++;
-                    logger.info("****** " + self.getId() + " - INSTANCENUMBER = {} \n", instance);
+                    //logger.info("****** " + self.getId() + " - INSTANCENUMBER = {} \n", instance);
                 }
                 trigger(new StartMonitoring(tmanPartners), epfdPort);
             }
@@ -104,7 +105,7 @@ public class LeaderSelection extends ComponentDefinition {
     Handler<NewLeaderFromBully> handleNewLeaderFromBully = new Handler<NewLeaderFromBully>() {
         public void handle(NewLeaderFromBully event) {
             leader = event.getLeader();
-            logger.info("****** " + self.getId() + " - REPORTED LEADER = {} \n", leader);
+            //logger.info("****** " + self.getId() + " - REPORTED LEADER = {} \n", leader);
             instanceRunning = 0;
             trigger(new CurrentLeaderEvent(event.getInstance(), leader), leaderSelectionPort);
             /*if (leader.getId() == self.getId()) {

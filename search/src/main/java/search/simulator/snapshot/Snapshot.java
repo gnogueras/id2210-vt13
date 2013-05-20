@@ -69,6 +69,8 @@ public class Snapshot {
         int totalNumOfPeers = peers.size();
         str += "total number of peers: " + totalNumOfPeers + "\n";
         str += "Peers: " + getOrderPeers() + "\n";
+        str += "STATISTICS\n";
+        
         return str;
     }
 
@@ -98,4 +100,5 @@ public class Snapshot {
         }
         return set;
     }
+    
 }
