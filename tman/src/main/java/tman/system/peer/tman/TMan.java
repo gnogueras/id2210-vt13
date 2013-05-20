@@ -40,8 +40,8 @@ public final class TMan extends ComponentDefinition {
     private ArrayList<PeerDescriptor> tmanPartnersDescriptors;
     private TManConfiguration tmanConfiguration;
     private Random r;
-    private int max_age = 10;
-    private int psi = 5;
+    private int MAX_AGE = 10;
+    private int PSI = 7;
     private static final int PEER_TRUNCATE_VALUE = 6;
 
     public class TManSchedule extends Timeout {
@@ -108,7 +108,7 @@ public final class TMan extends ComponentDefinition {
 
             //merge
             //tmanPartners = merge(tmanPartners, cyclonPartners);
-            tmanPartnersDescriptors = merge_pd(removeOldPeers(max_age, tmanPartnersDescriptors), cyclonPartnersDescriptors);
+            tmanPartnersDescriptors = merge_pd(removeOldPeers(MAX_AGE, tmanPartnersDescriptors), cyclonPartnersDescriptors);
             tmanPartners = peerDescriptorToAddress(tmanPartnersDescriptors);
             //rank
             tmanPartners = rank(tmanPartners);
@@ -409,10 +409,10 @@ public final class TMan extends ComponentDefinition {
     
     private ArrayList<PeerDescriptor> getBufferToSend(ArrayList<Address> partners) {
         ArrayList<PeerDescriptor> buffer = addressToPeerDescriptor(partners);
-        if(buffer.size()<=psi){
+        if(buffer.size()<=PSI){
             return buffer;
         }else{
-            return (new ArrayList<PeerDescriptor>(buffer.subList(0, psi))); 
+            return (new ArrayList<PeerDescriptor>(buffer.subList(0, PSI))); 
         }
     }
 

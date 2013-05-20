@@ -50,8 +50,8 @@ import se.sics.kompics.timer.Timer;
 import se.sics.kompics.web.Web;
 import se.sics.kompics.web.WebRequest;
 import se.sics.kompics.web.WebResponse;
-import search.bully.CurrentLeaderEvent;
-import search.bully.LeaderSelectionPort;
+import search.leaderSelection.CurrentLeaderEvent;
+import search.leaderSelection.LeaderSelectionPort;
 import search.simulator.snapshot.Snapshot;
 import search.system.peer.AddIndexText;
 import search.system.peer.IndexPort;
@@ -164,7 +164,7 @@ public final class Search extends ComponentDefinition {
                     //trigger discovery
                     logger.info(self.getId() + " - ADD REQUEST. LEADER IS NULL. HighestPeer={} text={}", highestRankingNeighbor(neighbours), args[1]);
                     logger.info("$$$$ - " + self.getId() + " - Discover process starts for peer: {} $$$$", self.getId());
-                    trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), args[1], self), networkPort);
+                    trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), args[1], self, 0), networkPort);
                     //wait for response
                 } else {
                     if (leader.getId() == self.getId()) {
@@ -183,7 +183,7 @@ public final class Search extends ComponentDefinition {
                     } else {
                         //trigger event to send the add to the leader
                         logger.info(self.getId() + " - ADD REQUEST. LEADER KNOWN. leader={} text={}", leader.getId(), args[1]);
-                        trigger(new AddEntryInLeader(self, leader, args[1], self), networkPort);
+                        trigger(new AddEntryInLeader(self, leader, args[1], self, 0), networkPort);
                         //wait for response
                     }
                 }
@@ -202,13 +202,13 @@ public final class Search extends ComponentDefinition {
             String textEntry = event.getTextEntry();
             if (leader == null) {
                 logger.info(self.getId() + " - HADNLER_ADD. LEADER IS NULL. HighestPeer={} text={}", highestRankingNeighbor(neighbours), textEntry);
-                trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer()), networkPort);
+                trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer(), event.getCounter()+1), networkPort);
             } else if (leader.getId() != self.getId()) {
                 logger.info(self.getId() + " - HADNLER_ADD. LEADER KNOWN. leader={} text={}", leader, textEntry);
-                trigger(new AddEntryInLeader(self, leader, textEntry, event.getEntryPeer()), networkPort);
+                trigger(new AddEntryInLeader(self, leader, textEntry, event.getEntryPeer(), event.getCounter()+1), networkPort);
             } else {
                 //We are the leader
-                logger.info("$$$$ - " + self.getId() + " - Discover process finishes for peer: {}  $$$$", event.getEntryPeer());
+                logger.info("$$$$ - " + self.getId() + " - Discover process finishes for peer: {}  Number of steps: {} $$$$", event.getEntryPeer(), event.getCounter()+1);
                 logger.info(self.getId() + " - HADNLER_ADD. I AM THE LEADER. entryPeer={} text={}", event.getEntryPeer(), textEntry);
                 //Add entry to self index
                 try {
@@ -235,15 +235,16 @@ public final class Search extends ComponentDefinition {
         public void handle(AddEntryInLeaderSimulation event) {
             String textEntry = event.getTextEntry();
             if (leader == null) {
-                trigger(new AddEntryInLeaderSimulation(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer()), networkPort);
+                trigger(new AddEntryInLeaderSimulation(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer(), event.getCounter()+1), networkPort);
             } else if (leader.getId() != self.getId()) {
-                trigger(new AddEntryInLeaderSimulation(self, leader, textEntry, event.getEntryPeer()), networkPort);
+                trigger(new AddEntryInLeaderSimulation(self, leader, textEntry, event.getEntryPeer(), event.getCounter()+1), networkPort);
             } else {
                 //We are the leader
                 //Add entry to self index
                 try {
                     addEntry(textEntry, indexId);
                     updateIndexPointers(indexId);
+                    logger.info(self.getId() + " - Simulation leader discovered. Number of steps = {} ", event.getCounter()+1);
                 } catch (IOException ex) {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -404,7 +405,7 @@ public final class Search extends ComponentDefinition {
             // You can change this policy if you want to.
             // Maybe a gradient neighbour who is closer to the leader?
             if (neighbours.isEmpty()) {
-                logger.info(self.getId() + "*****HANDLE UPDATE INDEX TIMEOUT: Neighbours empty*****");
+                //logger.info(self.getId() + "*****HANDLE UPDATE INDEX TIMEOUT: Neighbours empty*****");
                 return;
             }
             Address dest = neighbours.get(random.nextInt(neighbours.size()));
@@ -703,7 +704,7 @@ public final class Search extends ComponentDefinition {
             if (leader == null) {
                 //trigger discovery
                 logger.info(self.getId() + " - Simulation add request. LEADER IS NULL. HighestPeer={} text={}", highestRankingNeighbor(neighbours), event.getText());
-                trigger(new AddEntryInLeaderSimulation(self, highestRankingNeighbor(neighbours), event.getText(), self), networkPort);
+                trigger(new AddEntryInLeaderSimulation(self, highestRankingNeighbor(neighbours), event.getText(), self, 0), networkPort);
                 //wait for response
             } else {
                 if (leader.getId() == self.getId()) {
@@ -730,7 +731,7 @@ public final class Search extends ComponentDefinition {
                 } else {
                     //trigger event to send the add to the leader
                     logger.info(self.getId() + " - Simulation add request. LEADER KNOWN. leader={} text={}", leader.getId(), event.getText());
-                    trigger(new AddEntryInLeaderSimulation(self, leader, event.getText(), self), networkPort);
+                    trigger(new AddEntryInLeaderSimulation(self, leader, event.getText(), self, 0), networkPort);
                     //wait for response
                 }
             }
@@ -745,8 +746,7 @@ public final class Search extends ComponentDefinition {
             neighbours.addAll(event.getSample());
 
             if (neighbours.size() > 0) {
-                logger.info("Search component {} received {} samples from TMan.",
-                        self.getId(), neighbours.size());
+                //logger.info("Search component {} received {} samples from TMan.", self.getId(), neighbours.size());
             }
 
             // update routing tables

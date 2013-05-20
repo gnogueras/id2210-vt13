@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Negative;
@@ -18,13 +20,14 @@ import se.sics.kompics.address.Address;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timer;
+import search.system.peer.search.Search;
 
 /**
  *
  * @author Gerard
  */
 public class EventuallyPerfectFailureDetector extends ComponentDefinition {
-
+    private static final Logger logger = LoggerFactory.getLogger(EventuallyPerfectFailureDetector.class);
     Positive<Network> networkPort = positive(Network.class);
     Positive<Timer> timerPort = positive(Timer.class);
     Negative<EPFDPort> epfdPort = negative(EPFDPort.class);
@@ -63,8 +66,8 @@ public class EventuallyPerfectFailureDetector extends ComponentDefinition {
         public void handle(StartMonitoring event) {
             neighbours.addAll(event.getNeighbours());
 
-            System.out.println("\n****** " + self.getId() + " - EPFD Started monitoring: " + neighbours
-                    + " \n alive: " + alive);
+            /*logger.info("****** " + self.getId() + " - EPFD Started monitoring: " + neighbours
+                    + " \n alive: " + alive);*/
             //Broadcast heartbeat and trigger heartbeatTimeout event
             for (Address peer : neighbours) {
                 trigger(new Heartbeat(self, peer), networkPort);
@@ -80,7 +83,7 @@ public class EventuallyPerfectFailureDetector extends ComponentDefinition {
             if (intersection(alive, suspected)) {
                 checkPeriod += increment;
             }
-            System.out.println("\n****** " + self.getId() + " - ALIVE: " + alive + "\nSUSPECT: " + suspected);
+            //logger.info("****** " + self.getId() + " - ALIVE: " + alive + "\nSUSPECT: " + suspected);
             for (Address peer : neighbours) {
                 if (!alive.contains(peer) && !suspected.contains(peer)) {
                     suspected.add(peer);
@@ -107,7 +110,7 @@ public class EventuallyPerfectFailureDetector extends ComponentDefinition {
     Handler<Heartbeat> handleHeartbeat = new Handler<Heartbeat>() {
         public void handle(Heartbeat event) {
             alive.add(event.getSource());
-            System.out.println("\n-- " + self.getId() + " - HEARTBEAT RECEIVED from "+event.getSource().getId()+" alive: "+alive);
+            //logger.info("-- " + self.getId() + " - HEARTBEAT RECEIVED from "+event.getSource().getId()+" alive: "+alive);
             /*if(!crashSimulation){
                 trigger(new Heartbeat(self, event.getSource()), networkPort);
             }*/
@@ -115,7 +118,7 @@ public class EventuallyPerfectFailureDetector extends ComponentDefinition {
     };
     Handler<CrashSimulation> handleCrashSimulation = new Handler<CrashSimulation>() {
         public void handle(CrashSimulation event) {
-            System.out.println("\n****** " + self.getId() + " - CRASH SIMULATION SET TO TRUE");
+            logger.info("****** " + self.getId() + " - CRASH SIMULATION SET TO TRUE");
             crashSimulation = true;
         }
     };

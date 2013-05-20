@@ -1,4 +1,4 @@
-package search.bully;
+package search.leaderSelection;
 
 import java.util.Set;
 import se.sics.kompics.Init;

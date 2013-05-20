@@ -1,6 +1,9 @@
 package search.simulator.snapshot;
 
 import java.util.ArrayList;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import se.sics.kompics.address.Address;
 
@@ -65,7 +68,7 @@ public class Snapshot {
         String str = "---\n";
         int totalNumOfPeers = peers.size();
         str += "total number of peers: " + totalNumOfPeers + "\n";
-
+        str += "Peers: " + getOrderPeers() + "\n";
         return str;
     }
 
@@ -86,5 +89,13 @@ public class Snapshot {
         str += "Peer with min num of index entries: " + minNumIndexEntries + "\n";
 
         return str;
+    }
+    
+    private static Set<Integer> getOrderPeers(){
+        SortedSet<Integer> set = new TreeSet<Integer>(); 
+        for(Address p : peers.keySet()){
+            set.add(p.getId());
+        }
+        return set;
     }
 }

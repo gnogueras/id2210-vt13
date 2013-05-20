@@ -31,7 +31,7 @@ public class Bully extends ComponentDefinition {
     Positive<Timer> timerPort = positive(Timer.class);
     ArrayList<Address> neighbors;
     Address self;
-    int delay;
+    int RESPONSE_DELAY = 2000;
     static int messageCounter = 0;
     boolean gotAnswer;
     UUID coordinatorTimeoutId, answerTimeoutId;
@@ -54,7 +54,6 @@ public class Bully extends ComponentDefinition {
             //Inicialization of the Delay
             //Delay: timeout for NoCoordination 
             self = event.getSelf();
-            delay = 5000;
             gotAnswer = false;
         }
     };
@@ -78,7 +77,7 @@ public class Bully extends ComponentDefinition {
             } else {
                 broadcastElection(higherIdNeighbors, event.getInstance());
                 //trigger timeout
-                ScheduleTimeout stAnswer = new ScheduleTimeout(delay);
+                ScheduleTimeout stAnswer = new ScheduleTimeout(RESPONSE_DELAY);
                 stAnswer.setTimeoutEvent(new NoAnswerTimeout(stAnswer, event.getInstance()));
                 answerTimeoutId = stAnswer.getTimeoutEvent().getTimeoutId();
                 trigger(stAnswer, timerPort);
@@ -108,7 +107,7 @@ public class Bully extends ComponentDefinition {
             if (gotAnswer == false) {
                 gotAnswer = true;
                 trigger(new CancelTimeout(answerTimeoutId), timerPort);
-                ScheduleTimeout stCoordination = new ScheduleTimeout(delay);
+                ScheduleTimeout stCoordination = new ScheduleTimeout(RESPONSE_DELAY);
                 stCoordination.setTimeoutEvent(new NoCoordinationTimeout(stCoordination, event.getInstance()));
                 coordinatorTimeoutId = stCoordination.getTimeoutEvent().getTimeoutId();
                 trigger(stCoordination, timerPort);
@@ -123,7 +122,7 @@ public class Bully extends ComponentDefinition {
             ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(neighbors);
             broadcastElection(higherIdNeighbors, event.getInstance());
             //trigger timeout
-            ScheduleTimeout stAnswer = new ScheduleTimeout(delay);
+            ScheduleTimeout stAnswer = new ScheduleTimeout(RESPONSE_DELAY);
             stAnswer.setTimeoutEvent(new NoAnswerTimeout(stAnswer, event.getInstance()));
             answerTimeoutId = stAnswer.getTimeoutEvent().getTimeoutId();
             trigger(stAnswer, timerPort);

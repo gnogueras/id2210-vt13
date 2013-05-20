@@ -16,11 +16,13 @@ public class AddEntryInLeaderSimulation extends Message {
 
     String textEntry;
     Address entryPeer;
+    int counter;
 
-    public AddEntryInLeaderSimulation(Address source, Address destination, String textEntry, Address entryPeer) {
+    public AddEntryInLeaderSimulation(Address source, Address destination, String textEntry, Address entryPeer, int counter) {
         super(source, destination);
         this.textEntry = textEntry;
         this.entryPeer = entryPeer;
+        this.counter = counter;
     }
 
     public String getTextEntry() {
@@ -29,5 +31,9 @@ public class AddEntryInLeaderSimulation extends Message {
 
     public Address getEntryPeer() {
         return entryPeer;
+    }
+    
+    public int getCounter(){
+        return counter;
     }
 }

@@ -12,30 +12,30 @@ public class Scenario1 extends Scenario {
             StochasticProcess process0 = new StochasticProcess() {
                 {
                     eventInterArrivalTime(constant(1000));
-                    raise(4, Operations.peerJoin(),
+                    raise(50, Operations.peerJoin(),
                             uniform(0, Integer.MAX_VALUE));
                 }
             };
 
-            StochasticProcess process1 = new StochasticProcess() {
+            /*StochasticProcess process1 = new StochasticProcess() {
                 {
                     eventInterArrivalTime(constant(100));
                     raise(16, Operations.peerJoin(),
                             uniform(0, Integer.MAX_VALUE));
                 }
-            };
+            };*/
 
             StochasticProcess process2 = new StochasticProcess() {
                 {
                     eventInterArrivalTime(constant(100));
-                    raise(8, Operations.addIndexEntry(),
+                    raise(50, Operations.addIndexEntry(),
                             uniform(0, Integer.MAX_VALUE));
                 }
             };
 
             process0.start();
-            process1.startAfterTerminationOf(2000, process0);
-            process2.startAfterTerminationOf(25000, process1);
+            //process1.startAfterTerminationOf(2000, process0);
+            process2.startAfterTerminationOf(25000, process0);
         }
     };
 
