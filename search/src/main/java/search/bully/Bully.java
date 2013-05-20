@@ -66,14 +66,14 @@ public class Bully extends ComponentDefinition {
         public void handle(NewInstance event) {
 
             neighbors = event.getNeighbors();
-            logger.info("Node {} got a select new leader request from instance {}",
-                    self.getId(), event.getInstance());
+            /*logger.info("Node {} got a select new leader request from instance {}",
+                    self.getId(), event.getInstance());*/
             ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(neighbors);
             if (higherIdNeighbors.isEmpty()) {
                 //trigger COORDINATOR
                 broadcastCoordinator(neighbors, event.getInstance());
                 trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
-                logger.info("$$$$ - " + self.getId() +" - Leader: {}  messageCounter={} $$$$", self.getId(), messageCounter);
+                //logger.info("$$$$ - " + self.getId() +" - Leader: {}  messageCounter={} $$$$", self.getId(), messageCounter);
             } else {
                 broadcastElection(higherIdNeighbors, event.getInstance());
                 //trigger timeout
@@ -89,8 +89,8 @@ public class Bully extends ComponentDefinition {
         public void handle(Election event) {
             // For consistency, when comparing: first self.getPeerId, second BigInteger to compare with
             // Send reply if self has higher id than proposed leader
-            logger.info("ELECTION: Node {} got a Election from node {}",
-                    self.getId(), event.getSource().getId());
+            /*logger.info("ELECTION: Node {} got a Election from node {}",
+                    self.getId(), event.getSource().getId());*/
             if (self.getId() > event.getSource().getId()) {
                 trigger(new Answer(self, event.getSource(), event.getInstance()), networkPort);
                 messageCounter++;
@@ -102,8 +102,8 @@ public class Bully extends ComponentDefinition {
             //Wait until a coordinator message is received.
             //If no coordination message before timeout expiration,
             //resent Election message.
-            logger.info("ANSWER: Node {} got a Answer from node {}",
-                    self.getId(), event.getSource().getId());
+            /*logger.info("ANSWER: Node {} got a Answer from node {}",
+                    self.getId(), event.getSource().getId());*/
             if (gotAnswer == false) {
                 gotAnswer = true;
                 trigger(new CancelTimeout(answerTimeoutId), timerPort);
@@ -117,8 +117,8 @@ public class Bully extends ComponentDefinition {
     Handler<NoCoordinationTimeout> handleNoCoordinationTimeout = new Handler<NoCoordinationTimeout>() {
         public void handle(NoCoordinationTimeout event) {
             //If no Coordinator message, resend the Election message again
-            logger.info("TIMEOUT COORDINATION EXPIRATION: Node {}",
-                    self.getId());
+            /*logger.info("TIMEOUT COORDINATION EXPIRATION: Node {}",
+                    self.getId());*/
             ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(neighbors);
             broadcastElection(higherIdNeighbors, event.getInstance());
             //trigger timeout
@@ -131,23 +131,23 @@ public class Bully extends ComponentDefinition {
     Handler<NoAnswerTimeout> handleNoAnswerTimeout = new Handler<NoAnswerTimeout>() {
         public void handle(NoAnswerTimeout event) {
             //If no Coordinator message, resend the Election message again
-            logger.info("TIMEOUT ANSWER EXPIRATION: Node {}", self.getId());
+            //logger.info("TIMEOUT ANSWER EXPIRATION: Node {}", self.getId());
             broadcastCoordinator(neighbors, event.getInstance());
             // inform own instance that it's the leader
             trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
-            logger.info("$$$$ - " + self.getId() +" - Leader: {}  messageCounter={} $$$$", self.getId(), messageCounter);
+            //logger.info("$$$$ - " + self.getId() +" - Leader: {}  messageCounter={} $$$$", self.getId(), messageCounter);
         }
     };
     Handler<Coordinator> handleCoordinator = new Handler<Coordinator>() {
         public void handle(Coordinator event) {
             //Abort other processing:sending election or answer..
-            logger.info("COORDINATOR: Node {} got a Coordinator from node {}",
-                    self.getId(), event.getSource().getId());
+            /*logger.info("COORDINATOR: Node {} got a Coordinator from node {}",
+                    self.getId(), event.getSource().getId());*/
             //Coordinator received. Cancel the timeout
             trigger(new CancelTimeout(coordinatorTimeoutId), timerPort);
             //Trigger new NewLeaderFromBully event
             trigger(new NewLeaderFromBully(event.getInstance(), event.getSource()), bullyPort);
-            logger.info("$$$$ - " + self.getId() +" - Leader: {}  messageCounter={} $$$$", event.getSource().getId(), messageCounter);
+            //logger.info("$$$$ - " + self.getId() +" - Leader: {}  messageCounter={} $$$$", event.getSource().getId(), messageCounter);
         }
     };
 
