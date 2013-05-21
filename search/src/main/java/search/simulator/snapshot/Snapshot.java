@@ -1,6 +1,9 @@
 package search.simulator.snapshot;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -13,9 +16,17 @@ public class Snapshot {
             new ConcurrentHashMap<Address, PeerInfo>();
     private static int counter = 0;
     private static String FILENAME = "search.out";
-    static TreeSet timerSet = new TreeSet();
-    static TreeSet idSet = new TreeSet();
+    static TreeSet timerSet;
+    static TreeSet idSet;
     static int timerSetCounter = 0;
+    static int bullyMessageCounter = 0;
+    static int findLeaderCounter=0;
+    static int leaderSearchCounter = 0;
+    static HashMap<Integer, TreeSet> indexEntry = new HashMap<Integer, TreeSet>();
+    static HashMap<Integer, TreeSet> indexTimer = new HashMap<Integer, TreeSet>();
+    static HashMap<String, Integer> leaderSearchKV = new HashMap<String, Integer>();
+    //static Map Map.Entry<Long,TreeSet> entry; // = new AbstractMap.SimpleEntry<Long, TreeSet>(id, idSet);
+
 //-------------------------------------------------------------------
     public static void init(int numOfStripes) {
         FileIO.write("", FILENAME);
@@ -30,6 +41,7 @@ public class Snapshot {
     public static void removePeer(Address address) {
         peers.remove(address);
     }
+
 
 //-------------------------------------------------------------------
     public static void incNumIndexEntries(Address address) {
@@ -54,24 +66,100 @@ public class Snapshot {
     }
 
 
-//-------------------------------------------------------------------
-    public static void updateTimerSet(long id, long timestamp) {
-        idSet.add(id);
-        timerSet.add(timestamp);
+    //-------------------------------------------------------------------
+    public static void updateByllyCounter() {
+        bullyMessageCounter++;
+    }
+
+    //-------------------------------------------------------------------
+    public static void updateLeaderSearchCounter(String textEntry) {
         String str = new String();
+        if(!leaderSearchKV.containsKey(textEntry)){
+             str += "Creating leader search counter\n";
+            findLeaderCounter = 0;
+            leaderSearchKV.put(textEntry, findLeaderCounter++);
+        }else{
+            findLeaderCounter = leaderSearchKV.get(textEntry);
+            str += "Leader Search counter exists = " + findLeaderCounter +"\n";
+            leaderSearchKV.put(textEntry, findLeaderCounter+1);
+        }
+              System.out.println(str);
+    }
+
+//-------------------------------------------------------------------
+    public static void updateTimerSet(int indexUpdate, long id, long timestamp) {
+        String str = new String();
+        if(!indexEntry.containsKey(indexUpdate)){
+            idSet = new TreeSet();
+        }else{
+            idSet = indexEntry.get(indexUpdate);
+        }
+        idSet.add(id);
+        indexEntry.put(indexUpdate, idSet);
+
+        if(!indexTimer.containsKey(indexUpdate)){
+            timerSet = new TreeSet();
+        }else{
+            timerSet = indexTimer.get(indexUpdate);
+        }
+        timerSet.add(timestamp);
+        indexTimer.put(indexUpdate, timerSet);
+
         str += "";
-        if (idSet.size() == 50){
+        if (idSet.size() == 20){
             str += "---------------------------------------------------------------------\n";
-            str += "PropagationLatency: " + ((Long)timerSet.last()-(Long)timerSet.first()) + "\n";
+            str += "LATENCY STATISTICS\n";
+            str += "PropagationLatency for id: "+ indexUpdate +" is "+ ((Long)timerSet.last()-(Long)timerSet.first()) + "\n";
+            str += "---------------------------------------------------------------------\n";
             idSet.clear();
         }else{
             str += "IdSetSize: " + idSet.size() + "\n";
         }
-        str += "LATENCY STATISTICS\n";
+        System.out.println(str);
+    }
+
+
+   //-------------------------------------------------------------------
+    public static void printLeaderSearchCounterStats(String textEntry) {
+        String str = new String();
+        str += "---------------------------------------------------------------------\n";
+        str += "FIND LEADER STATISTICS\n";
+        int leaderCount = 0;
+        if(leaderSearchKV.containsKey(textEntry)){
+            leaderCount = leaderSearchKV.get(textEntry);
+        }
+        leaderCount++;
+        str += "Messages to find leader: " + leaderCount + "\n";
         str += "---------------------------------------------------------------------\n";
         System.out.println(str);
     }
 
+    //-------------------------------------------------------------------
+    public static void reportBullyCounter(long id, long leaderId) {
+        String str = new String();
+        str += "---------------------------------------------------------------------\n";
+        str += "LEADER SELECTION STATISTICS\n";
+        str += "Messages to select leader: " + bullyMessageCounter + "\n";
+        str += "Selected leader: " + leaderId + "\n";
+        str += "Reporting node: " + id + "\n";
+        str += "---------------------------------------------------------------------\n";
+        System.out.println(str);
+    }
+
+
+
+    //-------------------------------------------------------------------
+    public static void reportConvergenceNumber(int messages) {
+        String str = new String();
+        int totalNumOfPeers = peers.size();
+        str += "---------------------------------------------------------------------\n";
+        str += "Convergence STATISTICS\n";
+        str += "MESSAGES TO CONVERGE: " + messages + "\n";
+        str += "total number of peers: " + totalNumOfPeers + "\n";
+        str += "Peers: " + getOrderPeers() + "\n";
+        str += "---------------------------------------------------------------------\n";
+        System.out.println(str);
+    }
 
 
 //-------------------------------------------------------------------
@@ -89,37 +177,14 @@ public class Snapshot {
 //-------------------------------------------------------------------
     private static String reportNetworkState() {
         String str = "---\n";
-        int totalNumOfPeers = peers.size();
-        str += "total number of peers: " + totalNumOfPeers + "\n";
-        str += "Peers: " + getOrderPeers() + "\n";
-        str += "STATISTICS\n";
+        //int totalNumOfPeers = peers.size();
+        //str += "total number of peers: " + totalNumOfPeers + "\n";
+        //str += "Peers: " + getOrderPeers() + "\n";
+        //str += "STATISTICS\n";
         
         return str;
     }
 
-
-
-    //-------------------------------------------------------------------
-    private static String reportPropagationLatency() {
-
-        timerSet.add(System.currentTimeMillis());
-        timerSetCounter++;
-        if (timerSetCounter == 50){
-        timerSetCounter =0;
-        timerSet.clear();
-        }
-        String str = "---\n";
-        int totalNumOfPeers = peers.size();
-        str += "total number of peers: " + totalNumOfPeers + "\n";
-        str += "Peers: " + getOrderPeers() + "\n";
-        str += "STATISTICS\n";
-
-        return str;
-    }
-
-    //logger.info(self.getId() + " - updating the index entry timetSetCounter={} at TIME={}", timerSetCounter, System.currentTimeMillis());
-    //logger.info(self.getId() + " - First to last latency={}", ((Long)timerSet.last() - (Long)timerSet.first()));
-        
 
 //-------------------------------------------------------------------
     private static String reportDetails() {
@@ -134,8 +199,8 @@ public class Snapshot {
                 maxNumIndexEntries = p.getNumIndexEntries();
             }
         }
-        str += "Peer with max num of index entries: " + maxNumIndexEntries + "\n";
-        str += "Peer with min num of index entries: " + minNumIndexEntries + "\n";
+        //str += "Peer with max num of index entries: " + maxNumIndexEntries + "\n";
+        //str += "Peer with min num of index entries: " + minNumIndexEntries + "\n";
 
         return str;
     }

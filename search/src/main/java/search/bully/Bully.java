@@ -18,6 +18,7 @@ import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.CancelTimeout;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timer;
+import search.simulator.snapshot.Snapshot;
 
 /**
  *
@@ -73,6 +74,7 @@ public class Bully extends ComponentDefinition {
                 //trigger COORDINATOR
                 broadcastCoordinator(neighbors, event.getInstance());
                 trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
+                Snapshot.reportBullyCounter(self.getId(), self.getId());
                 //logger.info("$$$$ - " + self.getId() +" - Leader: {}  messageCounter={} $$$$", self.getId(), messageCounter);
             } else {
                 broadcastElection(higherIdNeighbors, event.getInstance());
@@ -147,6 +149,7 @@ public class Bully extends ComponentDefinition {
             trigger(new CancelTimeout(coordinatorTimeoutId), timerPort);
             //Trigger new NewLeaderFromBully event
             trigger(new NewLeaderFromBully(event.getInstance(), event.getSource()), bullyPort);
+          
             //logger.info("$$$$ - " + self.getId() +" - Leader: {}  messageCounter={} $$$$", event.getSource().getId(), messageCounter);
         }
     };
@@ -170,7 +173,7 @@ public class Bully extends ComponentDefinition {
     private void broadcastElection(ArrayList<Address> peers, int instance) {
         for (Address peer : peers) {
             trigger(new Election(self, peer, instance), networkPort);
-            messageCounter++;
+            Snapshot.updateByllyCounter();
         }
     }
     //Broadcast message m to the set of peers
@@ -178,7 +181,7 @@ public class Bully extends ComponentDefinition {
     private void broadcastCoordinator(ArrayList<Address> peers, int instance) {
         for (Address peer : peers) {
             trigger(new Coordinator(self, peer, instance), networkPort);
-            messageCounter++;
+            Snapshot.updateByllyCounter();
         }
     }
 }

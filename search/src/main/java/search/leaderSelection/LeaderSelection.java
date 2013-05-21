@@ -4,7 +4,6 @@
  */
 package search.leaderSelection;
 
-import common.peer.PeerAddress;
 import java.util.ArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,9 +12,7 @@ import se.sics.kompics.Handler;
 import se.sics.kompics.Negative;
 import se.sics.kompics.Positive;
 import se.sics.kompics.Start;
-import se.sics.kompics.Stop;
 import se.sics.kompics.address.Address;
-import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timer;
 import search.bully.BullyPort;
 import search.bully.NewInstance;
@@ -24,7 +21,7 @@ import search.epfd.CrashSimulation;
 import search.epfd.EPFDPort;
 import search.epfd.StartMonitoring;
 import search.epfd.Suspect;
-import search.system.peer.search.Search;
+import search.simulator.snapshot.Snapshot;
 import tman.system.peer.tman.TManSample;
 import tman.system.peer.tman.TManSamplePort;
 
@@ -42,9 +39,9 @@ public class LeaderSelection extends ComponentDefinition {
     Address self;
     static Address leader = null;
     ArrayList<Address> tmanPartners, previousPartners;
-    final int CONVERGENCE_THRESHOLD = 20;
+    final int CONVERGENCE_THRESHOLD = 10;
     final int SAFETY_SET = 2;
-    int convergenceCounter, absolutCounter;
+    int convergenceCounter, absoluteCounter;
     int instance = 0;
     int NUMBER_OF_COMPARED_PEERS;
     int instanceRunning = 0;
@@ -62,7 +59,7 @@ public class LeaderSelection extends ComponentDefinition {
         public void handle(LeaderSelectionInit event) {
             self = event.getSelf();
             convergenceCounter = 0;
-            absolutCounter = 0;
+            absoluteCounter = 0;
             tmanPartners = new ArrayList<Address>();
             previousPartners = new ArrayList<Address>();
         }
@@ -86,13 +83,13 @@ public class LeaderSelection extends ComponentDefinition {
             } else {
                 convergenceCounter = 0;
             }
-            absolutCounter++;
-            //logger.info("\n****** " + self.getId() + " - COUNTER = {}  \n InstanceRunning={} \n", convergenceCounter, instanceRunning);
+            absoluteCounter++;
             if (convergenceCounter == CONVERGENCE_THRESHOLD && leader == null && instanceRunning == 0) {
                 
                 ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(tmanPartners);
                 if (higherIdNeighbors.isEmpty()) {
-                    logger.info("$$$$$ - " + self.getId() + " - ConvergenceCounter = {}  AbsoulteCounter={} $$$$$\n", convergenceCounter, absolutCounter);
+                    //logger.info("$$$$$ - " + self.getId() + " - ConvergenceCounter = {}  AbsoulteCounter={} $$$$$\n", convergenceCounter, absoluteCounter);
+                    Snapshot.reportConvergenceNumber(absoluteCounter);
                     trigger(new NewInstance(self, instance, tmanPartners), bullyPort);
                     instanceRunning = 1;
                     instance++;
