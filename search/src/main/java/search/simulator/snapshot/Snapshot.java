@@ -13,7 +13,9 @@ public class Snapshot {
             new ConcurrentHashMap<Address, PeerInfo>();
     private static int counter = 0;
     private static String FILENAME = "search.out";
-
+    static TreeSet timerSet = new TreeSet();
+    static TreeSet idSet = new TreeSet();
+    static int timerSetCounter = 0;
 //-------------------------------------------------------------------
     public static void init(int numOfStripes) {
         FileIO.write("", FILENAME);
@@ -51,6 +53,27 @@ public class Snapshot {
         peerInfo.setNeighbours(partners);
     }
 
+
+//-------------------------------------------------------------------
+    public static void updateTimerSet(long id, long timestamp) {
+        idSet.add(id);
+        timerSet.add(timestamp);
+        String str = new String();
+        str += "";
+        if (idSet.size() == 50){
+            str += "---------------------------------------------------------------------\n";
+            str += "PropagationLatency: " + ((Long)timerSet.last()-(Long)timerSet.first()) + "\n";
+            idSet.clear();
+        }else{
+            str += "IdSetSize: " + idSet.size() + "\n";
+        }
+        str += "LATENCY STATISTICS\n";
+        str += "---------------------------------------------------------------------\n";
+        System.out.println(str);
+    }
+
+
+
 //-------------------------------------------------------------------
     public static void report() {
         String str = new String();
@@ -73,6 +96,30 @@ public class Snapshot {
         
         return str;
     }
+
+
+
+    //-------------------------------------------------------------------
+    private static String reportPropagationLatency() {
+
+        timerSet.add(System.currentTimeMillis());
+        timerSetCounter++;
+        if (timerSetCounter == 50){
+        timerSetCounter =0;
+        timerSet.clear();
+        }
+        String str = "---\n";
+        int totalNumOfPeers = peers.size();
+        str += "total number of peers: " + totalNumOfPeers + "\n";
+        str += "Peers: " + getOrderPeers() + "\n";
+        str += "STATISTICS\n";
+
+        return str;
+    }
+
+    //logger.info(self.getId() + " - updating the index entry timetSetCounter={} at TIME={}", timerSetCounter, System.currentTimeMillis());
+    //logger.info(self.getId() + " - First to last latency={}", ((Long)timerSet.last() - (Long)timerSet.first()));
+        
 
 //-------------------------------------------------------------------
     private static String reportDetails() {

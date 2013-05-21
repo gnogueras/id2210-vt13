@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -36,6 +37,7 @@ import org.apache.lucene.search.TopScoreDocCollector;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.Version;
+import org.omg.CORBA.Current;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,6 +91,9 @@ public final class Search extends ComponentDefinition {
     WebRequest webRequestEvent;
     static int messageIndexCounter = 0;
     Random random;
+
+
+
     // When you partition the index you need to find new nodes
     // This is a routing table maintaining a list of pairs in each partition.
     private Map<Integer, List<PeerDescriptor>> routingTable;
@@ -210,6 +215,7 @@ public final class Search extends ComponentDefinition {
                 //We are the leader
                 logger.info("$$$$ - " + self.getId() + " - Discover process finishes for peer: {}  Number of steps: {} $$$$", event.getEntryPeer(), event.getCounter()+1);
                 logger.info(self.getId() + " - HADNLER_ADD. I AM THE LEADER. entryPeer={} text={}", event.getEntryPeer(), textEntry);
+                logger.info(self.getId() + " - added indext entry={} at time={}", textEntry, System.currentTimeMillis());
                 //Add entry to self index
                 try {
                     addEntry(textEntry, indexId);
@@ -800,7 +806,7 @@ public final class Search extends ComponentDefinition {
         /*if (id == lastMissingIndexEntry + 1) {
          lastMissingIndexEntry++;
          }*/
-
+         Snapshot.updateTimerSet(self.getId(), System.currentTimeMillis());
     }
 
     private Address highestRankingNeighbor(ArrayList<Address> neighbors) {
