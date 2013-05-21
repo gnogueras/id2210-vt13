@@ -88,6 +88,7 @@ public final class Search extends ComponentDefinition {
     int maxIndexEntry = 1;
     Address leader = null;
     int indexId = 1;
+    int request_number = 0;
     WebRequest webRequestEvent;
     static int messageIndexCounter = 0;
     Random random;
@@ -207,13 +208,13 @@ public final class Search extends ComponentDefinition {
             String textEntry = event.getTextEntry();
             if (leader == null) {
                 logger.info(self.getId() + " - HADNLER_ADD. LEADER IS NULL. HighestPeer={} text={}", highestRankingNeighbor(neighbours), textEntry);
-                trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer(), event.getCounter()+1), networkPort);
+                trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer(), event.getCounter() + 1), networkPort);
             } else if (leader.getId() != self.getId()) {
                 logger.info(self.getId() + " - HADNLER_ADD. LEADER KNOWN. leader={} text={}", leader, textEntry);
-                trigger(new AddEntryInLeader(self, leader, textEntry, event.getEntryPeer(), event.getCounter()+1), networkPort);
+                trigger(new AddEntryInLeader(self, leader, textEntry, event.getEntryPeer(), event.getCounter() + 1), networkPort);
             } else {
                 //We are the leader
-                logger.info("$$$$ - " + self.getId() + " - Discover process finishes for peer: {}  Number of steps: {} $$$$", event.getEntryPeer(), event.getCounter()+1);
+                logger.info("$$$$ - " + self.getId() + " - Discover process finishes for peer: {}  Number of steps: {} $$$$", event.getEntryPeer(), event.getCounter() + 1);
                 logger.info(self.getId() + " - HADNLER_ADD. I AM THE LEADER. entryPeer={} text={}", event.getEntryPeer(), textEntry);
                 logger.info(self.getId() + " - added indext entry={} at time={}", textEntry, System.currentTimeMillis());
                 //Add entry to self index
@@ -241,29 +242,37 @@ public final class Search extends ComponentDefinition {
         public void handle(AddEntryInLeaderSimulation event) {
             String textEntry = event.getTextEntry();
             if (leader == null) {
-                trigger(new AddEntryInLeaderSimulation(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer(), event.getCounter()+1), networkPort);
+                trigger(new AddEntryInLeaderSimulation(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer(), event.getCounter() + 1), networkPort);
             } else if (leader.getId() != self.getId()) {
-                trigger(new AddEntryInLeaderSimulation(self, leader, textEntry, event.getEntryPeer(), event.getCounter()+1), networkPort);
+                trigger(new AddEntryInLeaderSimulation(self, leader, textEntry, event.getEntryPeer(), event.getCounter() + 1), networkPort);
             } else {
                 //We are the leader
                 //Add entry to self index
                 try {
+                    logger.info(self.getId() + " - Before adding entry '{},{}'. lastMissingIndexEntry: "
+                            + lastMissingIndexEntry + " maxIndexEntry: " + maxIndexEntry, event.getTextEntry(), indexId);
                     addEntry(textEntry, indexId);
                     updateIndexPointers(indexId);
-                    logger.info(self.getId() + " - Simulation leader discovered. Number of steps = {} ", event.getCounter()+1);
+                    logger.info(self.getId() + " - After adding entry '{},{}'. lastMissingIndexEntry: "
+                            + lastMissingIndexEntry + " maxIndexEntry: " + maxIndexEntry, event.getTextEntry(), indexId);
+                    logger.info(self.getId() + " - Simulation leader discovered. Number of steps = {} ", event.getCounter() + 1);
+
+                    //propagate to neighbors
+                    logger.info(self.getId() + " - Neighbours:{} ", neighbours);
+                    for (Address p : neighbours) {
+                        logger.info(self.getId() + " - Trigger Propagate to {} ", p.getId());
+                        trigger(new PropagateEntryFromLeaderSimulation(self, p, textEntry, indexId, event.getEntryPeer()), networkPort);
+                    }
+                    //Send response to entryPeer
+                    if (!neighbours.contains(event.getEntryPeer())) {
+                        logger.info(self.getId() + " - Trigger Propagate to {} ", event.getEntryPeer().getId());
+                        trigger(new PropagateEntryFromLeaderSimulation(self, event.getEntryPeer(), textEntry, indexId, event.getEntryPeer()), networkPort);
+                    }
+                    //Increment indexId
+                    indexId++;
                 } catch (IOException ex) {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                //propagate to neighbors
-                for (Address p : neighbours) {
-                    trigger(new PropagateEntryFromLeaderSimulation(self, p, textEntry, indexId, event.getEntryPeer()), networkPort);
-                }
-                //Send response to entryPeer
-                if (!neighbours.contains(event.getEntryPeer())) {
-                    trigger(new PropagateEntryFromLeaderSimulation(self, event.getEntryPeer(), textEntry, indexId, event.getEntryPeer()), networkPort);
-                }
-                //Increment indexId
-                indexId++;
             }
         }
     };
@@ -291,10 +300,17 @@ public final class Search extends ComponentDefinition {
         @Override
         public void handle(PropagateEntryFromLeaderSimulation event) {
             //Add entry to self index
-
+            if(event.getIndexId()<lastMissingIndexEntry){
+                return;
+            }
             try {
+                logger.info(self.getId() + " - Before adding entry '{},{}'. lastMissingIndexEntry: "
+                        + lastMissingIndexEntry + " maxIndexEntry: " + maxIndexEntry, event.getTextEntry(), event.getIndexId());
                 addEntry(event.getTextEntry(), event.getIndexId());
                 updateIndexPointers(event.getIndexId());
+                request_number++;
+                logger.info(self.getId() + " - After adding entry '{},{}'. lastMissingIndexEntry: "
+                        + lastMissingIndexEntry + " maxIndexEntry: " + maxIndexEntry, event.getTextEntry(), event.getIndexId());
             } catch (IOException ex) {
                 java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
             }
@@ -361,11 +377,11 @@ public final class Search extends ComponentDefinition {
         w.addDocument(doc);
         w.close();
         Snapshot.incNumIndexEntries(self);
-        if(leader==null){
+        if (leader == null) {
             logger.info("$$$$ - " + self.getId() + " - No Leader add entry:({},{})  $$$$", title, id);
-        }else if(self.getId()!=leader.getId()){
+        } else if (self.getId() != leader.getId()) {
             logger.info("$$$$ - " + self.getId() + " - No Leader add entry:({},{})  $$$$", title, id);
-        }else{
+        } else {
             logger.info("$$$$ - " + self.getId() + " - Leader add entry:({},{})  $$$$", title, id);
         }
     }
@@ -421,15 +437,15 @@ public final class Search extends ComponentDefinition {
 
             List<Range> missingIndexEntries = getMissingRanges();
 
+            request_number++;
             // Send a MissingIndexEntries.Request for the missing index entries to dest
             MissingIndexEntries.Request req = new MissingIndexEntries.Request(self, dest,
-                    missingIndexEntries);
-
-            /*logger.info(self.getId()
-             + " - REQUEST: Ranges of entries requested: ");
+                    missingIndexEntries, request_number);
+            logger.info(self.getId()
+             + " - REQUEST_INDEX number=" + request_number +"  lastMisingIndex: " + lastMissingIndexEntry + " maxIndex: "+maxIndexEntry +" Ranges req: ");
              for (Range r : missingIndexEntries) {
              logger.info(self.getId() + "        [{},{}]", r.getLower(), r.getUpper());
-             }*/
+             }
 
             trigger(req, networkPort);
             messageIndexCounter++;
@@ -557,7 +573,7 @@ public final class Search extends ComponentDefinition {
 
     /**
      * Called by null null null null null null null null null null null null
-     * null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
+     * null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
      * handleMissingIndexEntriesRequest}
      *
      * @return List of IndexEntries at this node great than max
@@ -611,7 +627,7 @@ public final class Search extends ComponentDefinition {
             }
 
             // TODO send missing index entries back to requester
-            MissingIndexEntries.Response response = new MissingIndexEntries.Response(self, event.getSource(), res);
+            MissingIndexEntries.Response response = new MissingIndexEntries.Response(self, event.getSource(), res, event.getRequest_number());
             /*logger.info(self.getId()
              + " - Ranges from peer:{}", event.getSource().getId());
              for (Range r : event.getMissingRanges()) {
@@ -633,21 +649,26 @@ public final class Search extends ComponentDefinition {
         public void handle(MissingIndexEntries.Response event) {
             // TODO merge the missing index entries in your lucene index
             List<IndexEntry> entries = event.getEntries();
-
-            /*if (entries.isEmpty()) {
-             logger.info(self.getId()
-             + " - RESPONSE. Number of entries received {}", entries.size());
+            if(event.getRequest_number() < request_number){
+                logger.info(self.getId()
+             + " - RESPONSE to request_number=" + event.getRequest_number()+" discarded. Current request_number="+request_number);
+                return;
+            }
+            if (entries.isEmpty()) {
+             /*logger.info(self.getId()
+             + " - RESPONSE. Number of entries received {}", entries.size());*/
              return;
-             }*/
+             }
+            
 
-            /*logger.info(self.getId()
-             + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
+            logger.info(self.getId()
+             + " - RESPONSE to request_number=" + event.getRequest_number()+"  lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
             for (IndexEntry e : entries) {
                 /*logger.info(self.getId()
                  + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
                 updateIndexPointers(e.getIndexId());
-                /*logger.info(self.getId()
-                 + " - RESPONSE. Adding index entry: {} Id={}", e.getText(), e.getIndexId());*/
+                logger.info(self.getId()
+                 + " - RESPONSE to request_number=" + event.getRequest_number()+" Adding index entry: {} Id={}", e.getText(), e.getIndexId());
                 /*logger.info(self.getId()
                  + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
 
