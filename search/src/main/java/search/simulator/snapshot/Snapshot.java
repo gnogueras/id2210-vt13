@@ -1,5 +1,6 @@
 package search.simulator.snapshot;
 
+import common.simulation.scenarios.Scenario1;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,6 +26,8 @@ public class Snapshot {
     static HashMap<Integer, TreeSet> indexEntry = new HashMap<Integer, TreeSet>();
     static HashMap<Integer, TreeSet> indexTimer = new HashMap<Integer, TreeSet>();
     static HashMap<String, Integer> leaderSearchKV = new HashMap<String, Integer>();
+    static Scenario1 scenario = new Scenario1();
+    static ArrayList<Long> latencyList = new ArrayList<Long>();
     //static Map Map.Entry<Long,TreeSet> entry; // = new AbstractMap.SimpleEntry<Long, TreeSet>(id, idSet);
 
 //-------------------------------------------------------------------
@@ -89,6 +92,7 @@ public class Snapshot {
 //-------------------------------------------------------------------
     public static void updateTimerSet(int indexUpdate, long id, long timestamp) {
         String str = new String();
+
         if(!indexEntry.containsKey(indexUpdate)){
             idSet = new TreeSet();
         }else{
@@ -106,17 +110,41 @@ public class Snapshot {
         indexTimer.put(indexUpdate, timerSet);
 
         str += "";
-        if (idSet.size() == 20){
+        if (idSet.size() == scenario.PeersAdded()){
             str += "---------------------------------------------------------------------\n";
             str += "LATENCY STATISTICS\n";
             str += "PropagationLatency for id: "+ indexUpdate +" is "+ ((Long)timerSet.last()-(Long)timerSet.first()) + "\n";
+            latencyList.add(((Long)timerSet.last()-(Long)timerSet.first()));
+            str += "Latency List size " + latencyList.size() + "\n;";
             str += "---------------------------------------------------------------------\n";
+            str += "Total propagation latency----------------------- \n";
+            str += latencyList + "\n";
+            str += "Average propagation latency--------------------- \n";
+            long m=0;
+            for(long i:latencyList){
+                m+=i;
+                }
+            str += m/latencyList.size() + ";";
             idSet.clear();
         }else{
             str += "IdSetSize: " + idSet.size() + "\n";
         }
+
+         if (latencyList.size() == scenario.IndexEntriesAdded()){
+            str += "Total propagation latency----------------------- \n";
+            str += latencyList + "\n";
+            str += "Average propagation latency--------------------- \n";
+            long m=0;
+            for(long i:latencyList){
+                m+=i;
+                }
+            str += m/latencyList.size() + ";";
+         }
         System.out.println(str);
     }
+    
+
+
 
 
    //-------------------------------------------------------------------

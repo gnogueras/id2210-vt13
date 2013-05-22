@@ -8,6 +8,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.util.Properties;
 
+
 public final class SearchConfiguration {
 
     private final long period;
