@@ -107,14 +107,12 @@ public class Snapshot {
 //-------------------------------------------------------------------
     public static void updateTimerSet(int indexUpdate, long id, long timestamp) {
         String str = new String();
+        //TreeSet idSet, timerSet;
         updateMessagesUpdateIndex(indexUpdate, id);
         if (!indexEntry.containsKey(indexUpdate)) {
             idSet = new TreeSet();
         } else {
             idSet = indexEntry.get(indexUpdate);
-        }
-        if(idSet==null){
-            System.out.println("idSet is null!!!!!!\n");
         }
         
         idSet.add(id);
