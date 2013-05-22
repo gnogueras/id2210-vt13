@@ -151,10 +151,7 @@ public class Snapshot {
         } else {
             str += "IdSetSize: " + idSet.size() + "\n";
         }
-        
-         System.out.println(str);
-         System.out.println("LatencySize="+latencyList.size()+"  messageUpdateIndexSize="+messagesUpdateIndex.size()+"\n");
-
+         
         if (latencyList.size() == scenario.IndexEntriesAdded()) {
             str += "----------------------- \n";
             str += "AVERAGE MEASURES\n";
@@ -162,10 +159,13 @@ public class Snapshot {
             str += "Average propagation latency: ";
             long m = 0;
             int messageAverage = 0;
-            for (int k = 0; k < latencyList.size(); k++) {
-                m += latencyList.get(k);
-                messageAverage += messagesUpdateIndex.get(k);
+            for (long i : latencyList) {
+                m += i;
             }
+            for(int i : messagesUpdateIndex.values()){
+                messageAverage += i;
+            }
+            
             int averageDiscoverySteps = 0;   
             Collection<Integer> values = leaderSearchKV.values();
             for(Integer n : values){
