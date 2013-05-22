@@ -274,11 +274,13 @@ public final class Search extends ComponentDefinition {
                     ////logger.info(self.getId() + " - Neighbours:{} ", neighbours);
                     for (Address p : neighbours) {
                         //logger.info(self.getId() + " - Trigger Propagate to {} ", p.getId());
+                        Snapshot.updateMessagesUpdateIndex(indexId, self.getId());
                         trigger(new PropagateEntryFromLeaderSimulation(self, p, textEntry, indexId, event.getEntryPeer()), networkPort);
                     }
                     //Send response to entryPeer
                     if (!neighbours.contains(event.getEntryPeer())) {
                         //logger.info(self.getId() + " - Trigger Propagate to {} ", event.getEntryPeer().getId());
+                        Snapshot.updateMessagesUpdateIndex(indexId, self.getId());
                         trigger(new PropagateEntryFromLeaderSimulation(self, event.getEntryPeer(), textEntry, indexId, event.getEntryPeer()), networkPort);
                     }
                     //Increment indexId
@@ -458,7 +460,7 @@ public final class Search extends ComponentDefinition {
              for (Range r : missingIndexEntries) {
              ////logger.info(self.getId() + "        [{},{}]", r.getLower(), r.getUpper());
              }
-
+            Snapshot.incrementMessagesUpdateIndexInExchanging(missingIndexEntries, self.getId());
             trigger(req, networkPort);
             messageIndexCounter++;
         }
@@ -676,13 +678,15 @@ public final class Search extends ComponentDefinition {
             for (IndexEntry e : entries) {
                 /*//logger.info(self.getId()
                  + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
-                updateIndexPointers(e.getIndexId());
+                
                 ////logger.info(self.getId() + " - RESPONSE to request_number=" + event.getRequest_number()+" Adding index entry: {} Id={}", e.getText(), e.getIndexId());
                 /*//logger.info(self.getId()
                  + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
 
                 try {
                     addEntry(e.getText(), e.getIndexId());
+                    updateIndexPointers(e.getIndexId());
+                    Snapshot.updateMessagesUpdateIndex(e.getIndexId(), self.getId());
                 } catch (IOException ex) {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                     throw new IllegalArgumentException(ex.getMessage());

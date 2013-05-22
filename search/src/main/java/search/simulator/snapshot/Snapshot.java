@@ -6,12 +6,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import se.sics.kompics.address.Address;
+import search.system.peer.search.Range;
 
 public class Snapshot {
 
@@ -19,8 +21,8 @@ public class Snapshot {
             new ConcurrentHashMap<Address, PeerInfo>();
     private static int counter = 0;
     private static String FILENAME = "search.out";
-    static TreeSet timerSet;
-    static TreeSet idSet;
+    //static TreeSet timerSet;
+    //static TreeSet idSet;
     static int timerSetCounter = 0;
     static int bullyMessageCounter = 0;
     static int findLeaderCounter = 0;
@@ -83,11 +85,11 @@ public class Snapshot {
     public static void updateLeaderSearchCounter(String textEntry) {
         String str = new String();
         if (!leaderSearchKV.containsKey(textEntry)) {
-            str += "Creating leader search counter for entry: "+textEntry+"\n";
+            str += "Creating leader search counter for entry: " + textEntry + "\n";
             leaderSearchKV.put(textEntry, 1);
         } else {
             int findLeaderCounter = leaderSearchKV.get(textEntry);
-            str += "Leader Search counter exists = " + findLeaderCounter + "  for entry: " + textEntry +"\n";
+            str += "Leader Search counter exists = " + findLeaderCounter + "  for entry: " + textEntry + "\n";
             leaderSearchKV.put(textEntry, findLeaderCounter + 1);
         }
         System.out.println(str);
@@ -96,7 +98,7 @@ public class Snapshot {
 
     public static void updateMessagesUpdateIndex(int entryId, long peerId) {
         if (!messagesUpdateIndex.containsKey(entryId)) {
-            messagesUpdateIndex.put(entryId, 1);
+            messagesUpdateIndex.put(entryId, 0);
         } else {
             int count = messagesUpdateIndex.get(entryId);
             count++;
@@ -104,17 +106,30 @@ public class Snapshot {
         }
     }
 
+    public static void incrementMessagesUpdateIndexInExchanging(List<Range> ranges, long peerId) {
+        for(int entryId : messagesUpdateIndex.keySet()){
+            for(Range r : ranges){
+                if(entryId>=r.getLower() && entryId<=r.getUpper()){
+                    int count = messagesUpdateIndex.get(entryId);
+                    count++;
+                    messagesUpdateIndex.put(entryId, count);
+                    break;
+                }
+            }
+        }
+    }
+
 //-------------------------------------------------------------------
     public static void updateTimerSet(int indexUpdate, long id, long timestamp) {
         String str = new String();
-        //TreeSet idSet, timerSet;
+        TreeSet idSet, timerSet;
         updateMessagesUpdateIndex(indexUpdate, id);
         if (!indexEntry.containsKey(indexUpdate)) {
             idSet = new TreeSet();
         } else {
             idSet = indexEntry.get(indexUpdate);
         }
-        
+
         idSet.add(id);
         indexEntry.put(indexUpdate, idSet);
 
@@ -126,13 +141,15 @@ public class Snapshot {
         timerSet.add(timestamp);
         indexTimer.put(indexUpdate, timerSet);
 
-        str += "";
+        str += "\n";
         if (idSet.size() == scenario.PeersAdded()) {
             str += "---------------------------------------------------------------------\n";
-            str += "LATENCY STATISTICS\n";
+            str += "LATENCY STATISTICS for Entry " + indexUpdate + "\n";
+            str += "idSet=" + idSet + "\n";
+            str += "timerSet=" + timerSet + "\n";
             str += "PropagationLatency for id: " + indexUpdate + " is " + ((Long) timerSet.last() - (Long) timerSet.first()) + "\n";
             latencyList.add(((Long) timerSet.last() - (Long) timerSet.first()));
-            str += "Latency List size " + latencyList.size() + "\n;";
+            str += "Latency List size " + latencyList.size() + "\n";
             str += "---------------------------------------------------------------------\n";
             /*str += "Total propagation latency----------------------- \n";
              str += latencyList + "\n";
@@ -147,11 +164,11 @@ public class Snapshot {
 
             idSet.clear();
         } else {
-            str += "IdSetSize: " + idSet.size() + "\n";
+            //str += "IdSetSize: " + idSet.size() + "\n";
         }
-         
+
         if (latencyList.size() == scenario.IndexEntriesAdded()) {
-            str += "----------------------- \n";
+            str += "\n----------------------- \n";
             str += "AVERAGE MEASURES\n";
             str += "Total propagation latency: " + latencyList + "\n";
             str += "Average propagation latency: ";
@@ -160,19 +177,19 @@ public class Snapshot {
             for (long i : latencyList) {
                 m += i;
             }
-            for(int i : messagesUpdateIndex.values()){
+            for (int i : messagesUpdateIndex.values()) {
                 messageAverage += i;
             }
-            
-            int averageDiscoverySteps = 0;   
+
+            int averageDiscoverySteps = 0;
             Collection<Integer> values = leaderSearchKV.values();
-            for(Integer n : values){
+            for (Integer n : values) {
                 averageDiscoverySteps += n;
             }
-            str += m / latencyList.size() + "\n";
-            str += "Average number of message to propagate index updates: " + messageAverage/latencyList.size()+ "\n";
-            str += "Average number of steps to discover the leader: " + averageDiscoverySteps/values.size() + "\n";
-            str += "Maximum number of steps to discover the leader: " + Collections.max(values) +"\n";
+            str += (float) m / latencyList.size() + "\n";
+            str += "Average number of message to propagate index updates: " + (float) messageAverage / messagesUpdateIndex.size() + "\n";
+            str += "Average number of steps to discover the leader: " + (float) averageDiscoverySteps / values.size() + "\n";
+            str += "Maximum number of steps to discover the leader: " + Collections.max(values) + "\n";
             str += "----------------------- \n";
         }
 
