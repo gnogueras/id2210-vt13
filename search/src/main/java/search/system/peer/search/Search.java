@@ -176,6 +176,7 @@ public final class Search extends ComponentDefinition {
                     //wait for response
                 } else {
                     if (leader.getId() == self.getId()) {
+                        Snapshot.updateLeaderSearchCounter(args[1]);
                         Snapshot.printLeaderSearchCounterStats(args[1]);
                         //trigger event to add entry to neighbours 
                         //propagate to neighbors
@@ -222,6 +223,7 @@ public final class Search extends ComponentDefinition {
                 //We are the leader
                 //logger.info("$$$$ - " + self.getId() + " - Discover process finishes for peer: {}  Number of steps: {} $$$$", event.getEntryPeer(), event.getCounter() + 1);
                 logger.info(self.getId() + " - HADNLER_ADD. I AM THE LEADER. entryPeer={} text={}", event.getEntryPeer(), textEntry);
+                Snapshot.updateLeaderSearchCounter(textEntry);
                 Snapshot.printLeaderSearchCounterStats(textEntry);
                 //logger.info(self.getId() + " - added indext entry={} at time={}", textEntry, System.currentTimeMillis());
                 //Add entry to self index
@@ -258,6 +260,7 @@ public final class Search extends ComponentDefinition {
                 //We are the leader
                 //Add entry to self index
                 try {
+                    Snapshot.updateLeaderSearchCounter(textEntry);
                     Snapshot.printLeaderSearchCounterStats(textEntry);
                     logger.info(self.getId() + " - Before adding entry '{},{}'. lastMissingIndexEntry: "
                             + lastMissingIndexEntry + " maxIndexEntry: " + maxIndexEntry, event.getTextEntry(), indexId);
@@ -268,7 +271,7 @@ public final class Search extends ComponentDefinition {
                     logger.info(self.getId() + " - Simulation leader discovered. Number of steps = {} ", event.getCounter() + 1);
 
                     //propagate to neighbors
-                    logger.info(self.getId() + " - Neighbours:{} ", neighbours);
+                    //logger.info(self.getId() + " - Neighbours:{} ", neighbours);
                     for (Address p : neighbours) {
                         logger.info(self.getId() + " - Trigger Propagate to {} ", p.getId());
                         trigger(new PropagateEntryFromLeaderSimulation(self, p, textEntry, indexId, event.getEntryPeer()), networkPort);

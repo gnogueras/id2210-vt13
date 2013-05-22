@@ -5,8 +5,8 @@ import se.sics.kompics.p2p.experiment.dsl.SimulationScenario;
 @SuppressWarnings("serial")
 public class Scenario1 extends Scenario {
 
-    static int numberOfPeers = 50;
-    static int numberOfIndexEntries = 50;
+    static int numberOfPeers = 10;
+    static int numberOfIndexEntries = 10;
 
     private static SimulationScenario scenario = new SimulationScenario() {
         {

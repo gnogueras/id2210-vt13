@@ -94,6 +94,8 @@ public class LeaderSelection extends ComponentDefinition {
                     instanceRunning = 1;
                     instance++;
                     //logger.info("****** " + self.getId() + " - INSTANCENUMBER = {} \n", instance);
+                }else{
+                    convergenceCounter=convergenceCounter/2;
                 }
                 trigger(new StartMonitoring(tmanPartners), epfdPort);
             }
@@ -125,7 +127,7 @@ public class LeaderSelection extends ComponentDefinition {
                 if (event.getSuspected().getId() == leader.getId()) {
                     logger.info("****** " + self.getId() + " - SUSPECTING LEADER FAILED: "+leader.getId());
                     //Remove suspected peer (leader) from tmanPartners
-                    tmanPartners.remove(leader);
+                    //tmanPartners.remove(leader);
                     leader=null;
                     ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(tmanPartners);
                     if (higherIdNeighbors.size() <= SAFETY_SET) {

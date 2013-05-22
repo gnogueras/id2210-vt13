@@ -67,6 +67,7 @@ public class Bully extends ComponentDefinition {
         public void handle(NewInstance event) {
 
             neighbors = event.getNeighbors();
+            Snapshot.reportBullyCounter(self.getId(), self.getId());
             /*logger.info("Node {} got a select new leader request from instance {}",
                     self.getId(), event.getInstance());*/
             ArrayList<Address> higherIdNeighbors = selectHigherIdNeighbors(neighbors);
@@ -95,6 +96,7 @@ public class Bully extends ComponentDefinition {
                     self.getId(), event.getSource().getId());*/
             if (self.getId() > event.getSource().getId()) {
                 trigger(new Answer(self, event.getSource(), event.getInstance()), networkPort);
+                Snapshot.updateByllyCounter();
                 messageCounter++;
             }
         }
@@ -137,6 +139,7 @@ public class Bully extends ComponentDefinition {
             broadcastCoordinator(neighbors, event.getInstance());
             // inform own instance that it's the leader
             trigger(new NewLeaderFromBully(event.getInstance(), self), bullyPort);
+            Snapshot.reportBullyCounter(self.getId(), self.getId());
             //logger.info("$$$$ - " + self.getId() +" - Leader: {}  messageCounter={} $$$$", self.getId(), messageCounter);
         }
     };
@@ -160,6 +163,9 @@ public class Bully extends ComponentDefinition {
     // For consistency, when comparing: first self.getPeerId, second BigInteger to compare with
     private ArrayList<Address> selectHigherIdNeighbors(ArrayList<Address> neighbors) {
         ArrayList<Address> higherIdNeighbors = new ArrayList<Address>();
+        if(neighbors.isEmpty()){
+            return neighbors;
+        }
         for (Address peer : neighbors) {
             // Add peer to higherIdNeighbors list if self.getId > peer.getId
             if (self.getId() < peer.getId()) {
