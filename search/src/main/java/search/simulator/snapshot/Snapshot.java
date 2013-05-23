@@ -23,6 +23,7 @@ public class Snapshot {
     private static String FILENAME = "search.out";
     //static TreeSet timerSet;
     //static TreeSet idSet;
+    static long start;
     static int timerSetCounter = 0;
     static int bullyMessageCounter = 0;
     static int findLeaderCounter = 0;
@@ -78,21 +79,34 @@ public class Snapshot {
     }
 
     public static void resetByllyCounter() {
+        System.out.println("RESET counter");
+        start = System.currentTimeMillis();
         bullyMessageCounter = 0;
+    }
+
+    public static void printByllyCounter(long nodeId, long leaderId, int instance) {
+        String str = new String();
+        str += "________________________________\n";
+        str += "SNAPSHOT - PrintBullyCounter\nNew Leader has been elected\n";
+        str += "Peer: " + nodeId+"   Leader: "+leaderId+"   Instance: " +instance+"\n";
+        str += "BullyCounter = " + bullyMessageCounter+" messages\n";
+        str += "Time from RESET = " + (System.currentTimeMillis()-start) +" ms\n";
+        str += "________________________________\n";
+        System.out.println(str);
     }
 
     //-------------------------------------------------------------------
     public static void updateLeaderSearchCounter(String textEntry) {
         String str = new String();
         if (!leaderSearchKV.containsKey(textEntry)) {
-            str += "Creating leader search counter for entry: " + textEntry + "\n";
+            //str += "Creating leader search counter for entry: " + textEntry + "\n";
             leaderSearchKV.put(textEntry, 1);
         } else {
             int findLeaderCounter = leaderSearchKV.get(textEntry);
-            str += "Leader Search counter exists = " + findLeaderCounter + "  for entry: " + textEntry + "\n";
+            //str += "Leader Search counter exists = " + findLeaderCounter + "  for entry: " + textEntry + "\n";
             leaderSearchKV.put(textEntry, findLeaderCounter + 1);
         }
-        System.out.println(str);
+        //System.out.println(str);
     }
     //-------------------------------------------------------------------  
 
@@ -107,9 +121,9 @@ public class Snapshot {
     }
 
     public static void incrementMessagesUpdateIndexInExchanging(List<Range> ranges, long peerId) {
-        for(int entryId : messagesUpdateIndex.keySet()){
-            for(Range r : ranges){
-                if(entryId>=r.getLower() && entryId<=r.getUpper()){
+        for (int entryId : messagesUpdateIndex.keySet()) {
+            for (Range r : ranges) {
+                if (entryId >= r.getLower() && entryId <= r.getUpper()) {
                     int count = messagesUpdateIndex.get(entryId);
                     count++;
                     messagesUpdateIndex.put(entryId, count);
@@ -141,25 +155,16 @@ public class Snapshot {
         timerSet.add(timestamp);
         indexTimer.put(indexUpdate, timerSet);
 
-        str += "\n";
         if (idSet.size() == scenario.PeersAdded()) {
             str += "---------------------------------------------------------------------\n";
             str += "LATENCY STATISTICS for Entry " + indexUpdate + "\n";
-            str += "idSet=" + idSet + "\n";
-            str += "timerSet=" + timerSet + "\n";
+            //str += "idSet=" + idSet + "\n";
+            //str += "timerSet=" + timerSet + "\n";
             str += "PropagationLatency for id: " + indexUpdate + " is " + ((Long) timerSet.last() - (Long) timerSet.first()) + "\n";
             latencyList.add(((Long) timerSet.last() - (Long) timerSet.first()));
             str += "Latency List size " + latencyList.size() + "\n";
             str += "---------------------------------------------------------------------\n";
-            /*str += "Total propagation latency----------------------- \n";
-             str += latencyList + "\n";
-             str += "Average propagation latency--------------------- \n";
-             long m=0;
-             for(long i:latencyList){
-             m+=i;
-             }
-             str += m/latencyList.size() + ";";*/
-
+            
             str += "EntryId: " + indexUpdate + " propagated to all nodes. Total number of messages used: " + messagesUpdateIndex.get(indexUpdate) + "\n";
 
             idSet.clear();
@@ -167,7 +172,7 @@ public class Snapshot {
             //str += "IdSetSize: " + idSet.size() + "\n";
         }
 
-        if (latencyList.size() == scenario.IndexEntriesAdded()) {
+        if (latencyList.size() >= scenario.IndexEntriesAdded()) {
             str += "\n----------------------- \n";
             str += "AVERAGE MEASURES\n";
             str += "Total propagation latency: " + latencyList + "\n";

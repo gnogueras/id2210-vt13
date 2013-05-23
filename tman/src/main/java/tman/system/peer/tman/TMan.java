@@ -99,24 +99,12 @@ public final class TMan extends ComponentDefinition {
             List<Address> cyclonPartners = event.getSample();
             ArrayList<PeerDescriptor> cyclonPartnersDescriptors = addressToPeerDescriptor(cyclonPartners);
 
-            //Printing info
-            //System.out.print("ACTIVE. Self=" + self.getId() + " CyclonPartners=");
-            //printAddressList(cyclonPartners);
-
-            //System.out.print("ACTIVE. Self=" + self.getId() + " TmanPartnersDescriptors (last view)=");
-            //printDescriptorList(tmanPartnersDescriptors);
-
             //merge
             //tmanPartners = merge(tmanPartners, cyclonPartners);
             tmanPartnersDescriptors = merge_pd(removeOldPeers(MAX_AGE, tmanPartnersDescriptors), cyclonPartnersDescriptors);
             tmanPartners = peerDescriptorToAddress(tmanPartnersDescriptors);
             //rank
             tmanPartners = rank(tmanPartners);
-
-
-            //System.out.print("ACTIVE. Self=" + self.getId() + " Merged view={");
-            //printDescriptorList(tmanPartnersDescriptors);
-            //printAddressList(tmanPartners);
 
             //ACTIVE THREAD
             //from 2 to 6 from the active 
@@ -125,33 +113,14 @@ public final class TMan extends ComponentDefinition {
             }
 
             //select peer: p
-            //PeerAddress selectedPeer = selectPeer(psi, rank(self, tmanPartners));
             Address selectedPeer = getSoftMaxAddress(tmanPartners);
-            /*
-             //buffer <-- merge
-             ArrayList<Address> myDescriptor = new ArrayList<Address>();
-             myDescriptor.add(self);
-             ArrayList<Address> buffer = append(tmanPartners, myDescriptor);
-
-             //buffer <-- rank
-             //ORDER BASED ON THE SELECTED PEER!!!
-             buffer = rank(buffer);
-
-             //Transfrom buffer into DescriptorBuffer 
-             ArrayList<PeerDescriptor> pd = new ArrayList<PeerDescriptor>();
-             for (Address p : buffer) {
-             pd.add(new PeerDescriptor(p));
-             }
-             DescriptorBuffer descriptorBuffer = new DescriptorBuffer(self, pd);
-             */
+            
             ArrayList<PeerDescriptor> bufferToSend = getBufferToSend(tmanPartners);
             DescriptorBuffer descriptorBuffer = new DescriptorBuffer(self, bufferToSend);
             //send m entries to p = trigger <ExchangeMsg.Request>
             trigger(new ExchangeMsg.Request(UUID.randomUUID(), descriptorBuffer, self, selectedPeer), networkPort);
 
             //At the end of the Active Thread
-            //trigger timer (wait(delta))
-
         }
 
     };
@@ -161,38 +130,6 @@ public final class TMan extends ComponentDefinition {
         public void handle(ExchangeMsg.Request event) {
             //PASSIVE THREAD
 
-            //System.out.print("PASSIVE. Self=" + self.getId() + " last view=");
-            //printDescriptorList(tmanPartnersDescriptors);
-
-            /*
-             //buffer <-- merge
-             ArrayList<Address> myDescriptor = new ArrayList<Address>();
-             myDescriptor.add(self);
-            
-             ArrayList<Address> buffer = append(tmanPartners, myDescriptor);
-             */
-            /*System.out.print("PASSIVE. Self="+self+" buffer to send={");
-             for( PeerAddress partner : buffer ){
-             System.out.print(partner.getPeerId()+",");
-             }
-             System.out.println("}");*/
-
-            //buffer <-- rank
-            //RANK ORDER BASED ON THE ID OF THE RECEIVER NODE WE ARE SENDING
-            /*buffer = rank(buffer);
-             System.out.print("PASSIVE. Self=" + self.getId() + " buffer to send ranked={");
-             for (Address partner : buffer) {
-             System.out.print(partner.getId() + ",");
-             }
-             System.out.println("}");
-
-
-             //Transfrom buffer into DescriptorBuffer 
-             ArrayList<PeerDescriptor> pd = new ArrayList<PeerDescriptor>();
-             for (Address p : buffer) {
-             pd.add(new PeerDescriptor(p));
-             }
-             */
             DescriptorBuffer descriptorBuffer = new DescriptorBuffer(self, tmanPartnersDescriptors);
 
             //send m entries to p = trigger <ExchangeMsg.Respone>
@@ -203,21 +140,11 @@ public final class TMan extends ComponentDefinition {
             ArrayList<PeerDescriptor> receivedDescriptors = new ArrayList<PeerDescriptor>(event.getRandomBuffer().getDescriptors());
             receivedDescriptors.add(new PeerDescriptor(event.getSource()));
 
-            /*
-             ArrayList<Address> bufferq = new ArrayList<Address>();
-             for (PeerDescriptor d : pd) {
-             bufferq.add(d.getAddress());
-             }
-             */
             //view <-- merge(bufferq, view) (View = tmanpartners)
-            //tmanPartners = merge(tmanPartners, bufferq);
             tmanPartnersDescriptors = merge_pd(tmanPartnersDescriptors, receivedDescriptors);
             tmanPartners = peerDescriptorToAddress(tmanPartnersDescriptors);
             tmanPartners = rank(tmanPartners);
 
-            //System.out.print("PASSIVE. Self=" + self.getId() + " View updated=");
-            //printDescriptorList(tmanPartnersDescriptors);
-            //printAddressList(tmanPartners);
         }
     };
     Handler<ExchangeMsg.Response> handleTManPartnersResponse = new Handler<ExchangeMsg.Response>() {
@@ -230,24 +157,12 @@ public final class TMan extends ComponentDefinition {
             //Get the PeerDescriptor buffer (ArrayList<PeerDescriptor>)
             ArrayList<PeerDescriptor> receivedDescriptors = event.getSelectedBuffer().getDescriptors();
             receivedDescriptors.add(new PeerDescriptor(event.getSource()));
-            //System.out.print("ACTIVE. Self=" + self.getId() + " event.source=" + event.getSource().getId() + " receivedDescriptors=");
-            //printDescriptorList(receivedDescriptors);
 
-            /*
-             ArrayList<Address> bufferq = new ArrayList<Address>();
-             for (PeerDescriptor d : pd) {
-             bufferq.add(d.getAddress());
-             }
-             */
             //view <-- merge(bufferq, view) (View = tmanpartners)
             //tmanPartners = merge(tmanPartners, bufferq);
-
             tmanPartnersDescriptors = merge_pd(tmanPartnersDescriptors, receivedDescriptors);
             tmanPartners = peerDescriptorToAddress(tmanPartnersDescriptors);
             tmanPartners = rank(tmanPartners);
-
-            //System.out.print("ACTIVE. Self=" + self.getId() + " View updated=");
-            //printDescriptorList(tmanPartnersDescriptors);
         }
     };
 // TODO - if you call this method with a list of entries, it will
@@ -321,14 +236,10 @@ public final class TMan extends ComponentDefinition {
      * (newPeers are fresh, have age 0)
      */
 
+    //Merge function using peer descriptors
     private ArrayList<PeerDescriptor> merge_pd(ArrayList<PeerDescriptor> oldPeers, List<PeerDescriptor> newPeers) {
         ArrayList<PeerDescriptor> merged = oldPeers;
         for (PeerDescriptor peer : newPeers) {
-            /*if (!isPeerContained(peer, merged) && peer.getAddress().getId() != self.getId()) {
-             merged.add(peer);
-             }else if(isPeerContained(peer, merged) && peer.getAge()<getPeerInList(peer.getAddress(), merged).getAge()){
-                
-             }*/
             if (peer.getAddress().getId() != self.getId()) {
                 merged = tryToAdd(peer, merged);
             }
@@ -336,6 +247,7 @@ public final class TMan extends ComponentDefinition {
         return merged;
     }
 
+    //Remove peers with age grater than max_age and return the updated list
     private ArrayList<PeerDescriptor> removeOldPeers(int max_age, List<PeerDescriptor> oldPeers) {
         ArrayList<PeerDescriptor> notExpiredPeers = new ArrayList();
         for (PeerDescriptor peer : oldPeers) {
@@ -357,6 +269,7 @@ public final class TMan extends ComponentDefinition {
         return merged;
     }
 
+    //Function to get a PeerDescriptor List from an Address List
     private ArrayList<PeerDescriptor> addressToPeerDescriptor(List<Address> addressList) {
         ArrayList<PeerDescriptor> peerDescriptorList = new ArrayList<PeerDescriptor>();
         for (Address p : addressList) {
@@ -365,6 +278,7 @@ public final class TMan extends ComponentDefinition {
         return peerDescriptorList;
     }
 
+    //Function to get an Address List from a PeerDescriptor list
     private ArrayList<Address> peerDescriptorToAddress(ArrayList<PeerDescriptor> peerDescriptorList) {
         ArrayList<Address> addressList = new ArrayList<Address>();
         for (PeerDescriptor pd : peerDescriptorList) {
@@ -373,6 +287,7 @@ public final class TMan extends ComponentDefinition {
         return addressList;
     }
 
+    //Check if the PeerDescriptor is contained in the list (based on id, ignoring the age)
     private boolean isPeerContained(PeerDescriptor peer, ArrayList<PeerDescriptor> list) {
         for (PeerDescriptor p : list) {
             if (p.getAddress().equals(peer.getAddress())) {
@@ -382,6 +297,7 @@ public final class TMan extends ComponentDefinition {
         return false;
     }
 
+    //Get the PeerDescriptor identified by the Address peer, from the peerDescrpitor list
     private PeerDescriptor getPeerInList(Address peer, ArrayList<PeerDescriptor> list) {
         for (PeerDescriptor p : list) {
             if (p.getAddress().equals(peer)) {
@@ -391,6 +307,7 @@ public final class TMan extends ComponentDefinition {
         return null;
     }
 
+    //Function that tries to add the PeerDescriptor to the list. If it contained, update the age
     private ArrayList<PeerDescriptor> tryToAdd(PeerDescriptor peer, ArrayList<PeerDescriptor> peerList) {
         ArrayList<PeerDescriptor> list = new ArrayList<PeerDescriptor>(peerList);
         if (!isPeerContained(peer, list)) {
@@ -407,6 +324,7 @@ public final class TMan extends ComponentDefinition {
         return list;
     }
     
+    //Get the Buffer to send. PeerDescriptor list of maximum size of PSI 
     private ArrayList<PeerDescriptor> getBufferToSend(ArrayList<Address> partners) {
         ArrayList<PeerDescriptor> buffer = addressToPeerDescriptor(partners);
         if(buffer.size()<=PSI){
@@ -416,6 +334,7 @@ public final class TMan extends ComponentDefinition {
         }
     }
 
+    //Printing functions for debuging
     private void printDescriptorList(List<PeerDescriptor> list) {
         System.out.print("{");
         for (PeerDescriptor partner : list) {
@@ -423,7 +342,6 @@ public final class TMan extends ComponentDefinition {
         }
         System.out.println("}");
     }
-
     private void printAddressList(List<Address> list) {
         System.out.print("{");
         for (Address partner : list) {
@@ -431,12 +349,5 @@ public final class TMan extends ComponentDefinition {
         }
         System.out.println("}");
     }
-    //Implement Select Peer
-    /*private PeerAddress selectPeer(int psi, ArrayList<PeerAddress> view) {
-     int randomIndex = (new Random()).nextInt(psi);
-     if (randomIndex >= view.size()) {
-     randomIndex = (new Random()).nextInt(view.size());
-     }
-     return view.get(randomIndex);
-     }*/
+    
 }

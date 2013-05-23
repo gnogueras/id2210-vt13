@@ -66,8 +66,6 @@ public class EventuallyPerfectFailureDetector extends ComponentDefinition {
         public void handle(StartMonitoring event) {
             neighbours.addAll(event.getNeighbours());
 
-            /*logger.info("****** " + self.getId() + " - EPFD Started monitoring: " + neighbours
-                    + " \n alive: " + alive);*/
             //Broadcast heartbeat and trigger heartbeatTimeout event
             for (Address peer : neighbours) {
                 trigger(new Heartbeat(self, peer), networkPort);
@@ -83,7 +81,6 @@ public class EventuallyPerfectFailureDetector extends ComponentDefinition {
             if (intersection(alive, suspected)) {
                 checkPeriod += increment;
             }
-            //logger.info("****** " + self.getId() + " - ALIVE: " + alive + "\nSUSPECT: " + suspected);
             for (Address peer : neighbours) {
                 if (!alive.contains(peer) && !suspected.contains(peer)) {
                     suspected.add(peer);
@@ -99,6 +96,8 @@ public class EventuallyPerfectFailureDetector extends ComponentDefinition {
     };
     Handler<HeartbeatTimeout> handleHeartbeatTimeout = new Handler<HeartbeatTimeout>() {
         public void handle(HeartbeatTimeout event) {
+            //Send Heartbeats to neighbors if crashSimulation flag is not set
+            //Otherwise stop sending Heartbeats to simulate the crashed of the leader
             if (!crashSimulation) {
                 for (Address peer : neighbours) {
                     trigger(new Heartbeat(self, peer), networkPort);
@@ -110,10 +109,7 @@ public class EventuallyPerfectFailureDetector extends ComponentDefinition {
     Handler<Heartbeat> handleHeartbeat = new Handler<Heartbeat>() {
         public void handle(Heartbeat event) {
             alive.add(event.getSource());
-            //logger.info("-- " + self.getId() + " - HEARTBEAT RECEIVED from "+event.getSource().getId()+" alive: "+alive);
-            /*if(!crashSimulation){
-                trigger(new Heartbeat(self, event.getSource()), networkPort);
-            }*/
+            
         }
     };
     Handler<CrashSimulation> handleCrashSimulation = new Handler<CrashSimulation>() {

@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.TreeSet;
 import java.util.logging.Level;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
@@ -37,10 +36,8 @@ import org.apache.lucene.search.TopScoreDocCollector;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.Version;
-import org.omg.CORBA.Current;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import se.sics.kompics.ComponentDefinition;
 import se.sics.kompics.Handler;
 import se.sics.kompics.Negative;
@@ -57,7 +54,6 @@ import search.leaderSelection.LeaderSelectionPort;
 import search.simulator.snapshot.Snapshot;
 import search.system.peer.AddIndexText;
 import search.system.peer.IndexPort;
-import tman.system.peer.tman.ComparatorById;
 import tman.system.peer.tman.TManSample;
 import tman.system.peer.tman.TManSamplePort;
 
@@ -93,9 +89,6 @@ public final class Search extends ComponentDefinition {
     static int messageIndexCounter = 0;
     int leaderSearchCounter;
     Random random;
-
-
-
     // When you partition the index you need to find new nodes
     // This is a routing table maintaining a list of pairs in each partition.
     private Map<Integer, List<PeerDescriptor>> routingTable;
@@ -168,22 +161,20 @@ public final class Search extends ComponentDefinition {
                 trigger(response, webPort);
             } else if (args[0].compareToIgnoreCase("add") == 0) {
                 if (leader == null) {
-                    //trigger discovery
-                    //logger.info(self.getId() + " - ADD REQUEST. LEADER IS NULL. HighestPeer={} text={}", highestRankingNeighbor(neighbours), args[1]);
-                    //logger.info("$$$$ - " + self.getId() + " - Discover process starts for peer: {} $$$$", self.getId());
+                    //if we don't know the leader, trigger discovery (using AddEntryInLeader)
                     Snapshot.updateLeaderSearchCounter(args[1]);
                     trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), args[1], self, 0), networkPort);
-                    //wait for response
+                    //wait for response from the Leader
                 } else {
                     if (leader.getId() == self.getId()) {
+                        //If we are the leader                 
                         Snapshot.updateLeaderSearchCounter(args[1]);
                         Snapshot.printLeaderSearchCounterStats(args[1]);
-                        //trigger event to add entry to neighbours 
-                        //propagate to neighbors
+                        //trigger event to add entry to neighbours: propagate entry to neighbors
                         for (Address p : neighbours) {
                             trigger(new PropagateEntryFromLeader(self, p, args[1], indexId, self), networkPort);
                         }
-                        //wait for response
+                        //Generate the WebResponse. The addEntry function is actually called inside 
                         response = new WebResponse(addEntryHtml(args[1], indexId), event, 1, 1);
                         trigger(response, webPort);
                         //Update pointers
@@ -191,14 +182,14 @@ public final class Search extends ComponentDefinition {
                         //Increment indexId
                         indexId++;
                     } else {
+                        //we are not the leader, but we directly know him
                         //trigger event to send the add to the leader
-                        //logger.info(self.getId() + " - ADD REQUEST. LEADER KNOWN. leader={} text={}", leader.getId(), args[1]);
                         Snapshot.updateLeaderSearchCounter(args[1]);
                         trigger(new AddEntryInLeader(self, leader, args[1], self, 0), networkPort);
                         //wait for response
                     }
                 }
-                // the rest has to be moved...
+                // the rest has to be moved, and handled in the PropagateHandler
                 //response = new WebResponse(addEntryHtml(args[1], Integer.parseInt(args[2])), event, 1, 1);
             } else {
                 response = new WebResponse(searchPageHtml(event
@@ -207,25 +198,23 @@ public final class Search extends ComponentDefinition {
             }
         }
     };
+    //Handler AddEntryInLeader event, when using the WebInterface to add entries
     Handler<AddEntryInLeader> handleAddEntryInLeader = new Handler<AddEntryInLeader>() {
         @Override
         public void handle(AddEntryInLeader event) {
             String textEntry = event.getTextEntry();
             if (leader == null) {
-                //logger.info(self.getId() + " - HADNLER_ADD. LEADER IS NULL. HighestPeer={} text={}", highestRankingNeighbor(neighbours), textEntry);
+                //If we don't know the leader, re-trigger the event to the highest id neighbour
                 Snapshot.updateLeaderSearchCounter(textEntry);
                 trigger(new AddEntryInLeader(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer(), event.getCounter() + 1), networkPort);
             } else if (leader.getId() != self.getId()) {
-                //logger.info(self.getId() + " - HADNLER_ADD. LEADER KNOWN. leader={} text={}", leader, textEntry);
+                //If we know the leader, re-trigger the event to the leader
                 Snapshot.updateLeaderSearchCounter(textEntry);
                 trigger(new AddEntryInLeader(self, leader, textEntry, event.getEntryPeer(), event.getCounter() + 1), networkPort);
             } else {
                 //We are the leader
-                ////logger.info("$$$$ - " + self.getId() + " - Discover process finishes for peer: {}  Number of steps: {} $$$$", event.getEntryPeer(), event.getCounter() + 1);
-                //logger.info(self.getId() + " - HADNLER_ADD. I AM THE LEADER. entryPeer={} text={}", event.getEntryPeer(), textEntry);
                 Snapshot.updateLeaderSearchCounter(textEntry);
                 Snapshot.printLeaderSearchCounterStats(textEntry);
-                ////logger.info(self.getId() + " - added indext entry={} at time={}", textEntry, System.currentTimeMillis());
                 //Add entry to self index
                 try {
                     addEntry(textEntry, indexId);
@@ -233,11 +222,11 @@ public final class Search extends ComponentDefinition {
                 } catch (IOException ex) {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                 }
-                //propagate to neighbors
+                //propagate the add to neighbors
                 for (Address p : neighbours) {
                     trigger(new PropagateEntryFromLeader(self, p, textEntry, indexId, event.getEntryPeer()), networkPort);
                 }
-                //Send response to entryPeer
+                //Send response to entryPeer (in case it was not in the neighbors set)
                 if (!neighbours.contains(event.getEntryPeer())) {
                     trigger(new PropagateEntryFromLeader(self, event.getEntryPeer(), textEntry, indexId, event.getEntryPeer()), networkPort);
                 }
@@ -246,14 +235,17 @@ public final class Search extends ComponentDefinition {
             }
         }
     };
+    //Handler AddEntryInLeader event, when using the Scenario simulation to add entries
     Handler<AddEntryInLeaderSimulation> handleAddEntryInLeaderSimulation = new Handler<AddEntryInLeaderSimulation>() {
         @Override
         public void handle(AddEntryInLeaderSimulation event) {
             String textEntry = event.getTextEntry();
             if (leader == null) {
+                //If we don't know the leader, re-trigger the event to the highest id neighbour
                 Snapshot.updateLeaderSearchCounter(textEntry);
                 trigger(new AddEntryInLeaderSimulation(self, highestRankingNeighbor(neighbours), textEntry, event.getEntryPeer(), event.getCounter() + 1), networkPort);
             } else if (leader.getId() != self.getId()) {
+                //If we know the leader, re-trigger the event to the leader
                 Snapshot.updateLeaderSearchCounter(textEntry);
                 trigger(new AddEntryInLeaderSimulation(self, leader, textEntry, event.getEntryPeer(), event.getCounter() + 1), networkPort);
             } else {
@@ -262,24 +254,16 @@ public final class Search extends ComponentDefinition {
                 try {
                     Snapshot.updateLeaderSearchCounter(textEntry);
                     Snapshot.printLeaderSearchCounterStats(textEntry);
-                    //logger.info(self.getId() + " - Before adding entry '{},{}'. lastMissingIndexEntry: "
-                    //        + lastMissingIndexEntry + " maxIndexEntry: " + maxIndexEntry, event.getTextEntry(), indexId);
                     addEntry(textEntry, indexId);
                     updateIndexPointers(indexId);
-                    //logger.info(self.getId() + " - After adding entry '{},{}'. lastMissingIndexEntry: "
-                     //       + lastMissingIndexEntry + " maxIndexEntry: " + maxIndexEntry, event.getTextEntry(), indexId);
-                    //logger.info(self.getId() + " - Simulation leader discovered. Number of steps = {} ", event.getCounter() + 1);
 
-                    //propagate to neighbors
-                    ////logger.info(self.getId() + " - Neighbours:{} ", neighbours);
+                    //propagate add to neighbors
                     for (Address p : neighbours) {
-                        //logger.info(self.getId() + " - Trigger Propagate to {} ", p.getId());
                         Snapshot.updateMessagesUpdateIndex(indexId, self.getId());
                         trigger(new PropagateEntryFromLeaderSimulation(self, p, textEntry, indexId, event.getEntryPeer()), networkPort);
                     }
                     //Send response to entryPeer
                     if (!neighbours.contains(event.getEntryPeer())) {
-                        //logger.info(self.getId() + " - Trigger Propagate to {} ", event.getEntryPeer().getId());
                         Snapshot.updateMessagesUpdateIndex(indexId, self.getId());
                         trigger(new PropagateEntryFromLeaderSimulation(self, event.getEntryPeer(), textEntry, indexId, event.getEntryPeer()), networkPort);
                     }
@@ -291,12 +275,13 @@ public final class Search extends ComponentDefinition {
             }
         }
     };
+    //Handler for PropagateEntryFromLeader event, when using the Web interface for adding entries
     Handler<PropagateEntryFromLeader> handlePropagateEntryFromLeader = new Handler<PropagateEntryFromLeader>() {
         @Override
         public void handle(PropagateEntryFromLeader event) {
             //Add entry to self index
             if (self.getId() != event.getEntryPeer().getId()) {
-                //logger.info(self.getId() + " - HADNLER_PROP. NOT PEER ENTRY. peerEntry={} text={}", event.getEntryPeer(), event.getTextEntry());
+                //If we were not the peer who actually received the Web Request, only add entry
                 try {
                     addEntry(event.getTextEntry(), event.getIndexId());
                     updateIndexPointers(event.getIndexId());
@@ -304,32 +289,35 @@ public final class Search extends ComponentDefinition {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                 }
             } else {
-                //logger.info(self.getId() + " - HADNLER_PROP. I AM PEER ENTRY. peerEntry={} text={}", event.getEntryPeer(), event.getTextEntry());
+                //If we were the peer who received the web request, generate the web response (adding inside)
                 WebResponse response = new WebResponse(addEntryHtml(event.getTextEntry(), event.getIndexId()), webRequestEvent, 1, 1);
                 updateIndexPointers(event.getIndexId());
                 trigger(response, webPort);
             }
         }
     };
+    //Handler for PropagateEntryFromLeader event, when using the Scenario simulation for adding entries
     Handler<PropagateEntryFromLeaderSimulation> handlePropagateEntryFromLeaderSimulation = new Handler<PropagateEntryFromLeaderSimulation>() {
         @Override
         public void handle(PropagateEntryFromLeaderSimulation event) {
             //Add entry to self index
-            if(event.getIndexId()<lastMissingIndexEntry){
+            if (event.getIndexId() < lastMissingIndexEntry) {
+                //Safety condition. If we have already received the entry, we are not adding it again
+                //It can happen when we get a Response message with that entry from another peer 
+                //before getting the Propagate from the leader
                 return;
             }
             try {
-                //logger.info(self.getId() + " - Before adding entry '{},{}'. lastMissingIndexEntry: "
-                 //       + lastMissingIndexEntry + " maxIndexEntry: " + maxIndexEntry, event.getTextEntry(), event.getIndexId());
                 addEntry(event.getTextEntry(), event.getIndexId());
                 updateIndexPointers(event.getIndexId());
+                //The index has changed. The response to the previous request will not be valid.
+                //(Ranges are now incorrect). Increment request_number to discard it
                 request_number++;
-                //logger.info(self.getId() + " - After adding entry '{},{}'. lastMissingIndexEntry: "
-                //        + lastMissingIndexEntry + " maxIndexEntry: " + maxIndexEntry, event.getTextEntry(), event.getIndexId());
             } catch (IOException ex) {
                 java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
             }
             if (self.getId() == event.getEntryPeer().getId()) {
+                //Print message in screen when entry is added
                 //logger.info(self.getId() + " - Simulation add request. Adding index entry: {} Id={}", event.getTextEntry(), event.getIndexId());
             }
         }
@@ -392,13 +380,15 @@ public final class Search extends ComponentDefinition {
         w.addDocument(doc);
         w.close();
         Snapshot.incNumIndexEntries(self);
-        if (leader == null) {
-            //logger.info("$$$$ - " + self.getId() + " - No Leader add entry:({},{})  $$$$", title, id);
-        } else if (self.getId() != leader.getId()) {
-            //logger.info("$$$$ - " + self.getId() + " - No Leader add entry:({},{})  $$$$", title, id);
-        } else {
-            //logger.info("$$$$ - " + self.getId() + " - Leader add entry:({},{})  $$$$", title, id);
-        }
+        //Print for debugging
+        /*
+         if (leader == null) {
+         //logger.info("$$$$ - " + self.getId() + " - No Leader add entry:({},{})  $$$$", title, id);
+         } else if (self.getId() != leader.getId()) {
+         //logger.info("$$$$ - " + self.getId() + " - No Leader add entry:({},{})  $$$$", title, id);
+         } else {
+         //logger.info("$$$$ - " + self.getId() + " - Leader add entry:({},{})  $$$$", title, id);
+         }*/
     }
 
     private String query(StringBuilder sb, String querystr) throws ParseException, IOException {
@@ -441,28 +431,30 @@ public final class Search extends ComponentDefinition {
             // pick a random neighbour to ask for index updates from. 
             // You can change this policy if you want to.
             // Maybe a gradient neighbour who is closer to the leader?
+
             if (neighbours.isEmpty()) {
-                ////logger.info(self.getId() + "*****HANDLE UPDATE INDEX TIMEOUT: Neighbours empty*****");
+                //If the neigbours list is empty, we can not send the Request
                 return;
             }
-            Address dest = neighbours.get(random.nextInt(neighbours.size()));
 
+            Address dest = neighbours.get(random.nextInt(neighbours.size()));
             // find all missing index entries (ranges) between lastMissingIndexValue
             // and the maxIndexValue
 
             List<Range> missingIndexEntries = getMissingRanges();
-
+            //Update the request number for the new request
             request_number++;
             // Send a MissingIndexEntries.Request for the missing index entries to dest
             MissingIndexEntries.Request req = new MissingIndexEntries.Request(self, dest,
                     missingIndexEntries, request_number);
-            ////logger.info(self.getId() + " - REQUEST_INDEX number=" + request_number +"  lastMisingIndex: " + lastMissingIndexEntry + " maxIndex: "+maxIndexEntry +" Ranges req: ");
-             for (Range r : missingIndexEntries) {
-             ////logger.info(self.getId() + "        [{},{}]", r.getLower(), r.getUpper());
-             }
+
+            //Print ranges for debugging
+            //for (Range r : missingIndexEntries) {
+            ////logger.info(self.getId() + "        [{},{}]", r.getLower(), r.getUpper());
+            //}
+
             Snapshot.incrementMessagesUpdateIndexInExchanging(missingIndexEntries, self.getId());
             trigger(req, networkPort);
-            messageIndexCounter++;
         }
     };
 
@@ -474,12 +466,7 @@ public final class Search extends ComponentDefinition {
         // so that it doesn't consume too much memory.
         int hitsPerPage = max - min > 0 ? max - min : 1;
         Query query;
-        //if (max == Integer.MAX_VALUE) {
-        //query = NumericRangeQuery.newIntRange("id", min - 1, max, true, true);
-        //} else {
         query = NumericRangeQuery.newIntRange("id", min, max, true, true);
-        //}
-
         TopDocs topDocs = searcher.search(query, hitsPerPage, new Sort(new SortField("id", Type.INT)));
         return topDocs.scoreDocs;
     }
@@ -526,8 +513,6 @@ public final class Search extends ComponentDefinition {
                     // Add all entries > maxIndexEntry as a range of interest.
                     res.add(new Range(maxIndexEntry + 1, Integer.MAX_VALUE));
                 }
-
-
             }
         } catch (IOException ex) {
             java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
@@ -559,12 +544,8 @@ public final class Search extends ComponentDefinition {
                     try {
                         d = searcher.doc(docId);
                         int indexId = Integer.parseInt(d.get("id"));
-                        //String text = d.get("text");
+                        //String text = d.get("text");  //BUG!
                         String title = d.get("title");
-
-                        /*//logger.info(self.getId()
-                         + " - GET MISSING ENTRIES: Adding index entry to the buffer. title={} Id={} ", title, indexId);*/
-
                         res.add(new IndexEntry(indexId, title));
                     } catch (IOException ex) {
                         java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
@@ -587,7 +568,7 @@ public final class Search extends ComponentDefinition {
 
     /**
      * Called by null null null null null null null null null null null null
-     * null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
+     * null null null null null null null null null null null     {@link #handleMissingIndexEntriesRequest(MissingIndexEntries.Request) 
      * handleMissingIndexEntriesRequest}
      *
      * @return List of IndexEntries at this node great than max
@@ -640,49 +621,28 @@ public final class Search extends ComponentDefinition {
                 res.addAll(getMissingIndexEntries(r));
             }
 
-            // TODO send missing index entries back to requester
+            // Get and send missing index entries back to requester
             MissingIndexEntries.Response response = new MissingIndexEntries.Response(self, event.getSource(), res, event.getRequest_number());
-            /*//logger.info(self.getId()
-             + " - Ranges from peer:{}", event.getSource().getId());
-             for (Range r : event.getMissingRanges()) {
-             //logger.info(self.getId()
-             + "          Range: [{} , {}]", r.getLower(), r.getUpper());
-             }
-             //logger.info(self.getId()
-             + " - SEND RESPONSE with {} entries to peer:{}", res.size(), event.getSource().getId());
-             for (IndexEntry e : res) {
-             //logger.info(self.getId()
-             + "          Id:{}   {}", e.getIndexId(), e.getText());
-             }*/
             trigger(response, networkPort);
-            messageIndexCounter++;
         }
     };
     Handler<MissingIndexEntries.Response> handleMissingIndexEntriesResponse = new Handler<MissingIndexEntries.Response>() {
         @Override
         public void handle(MissingIndexEntries.Response event) {
-            // TODO merge the missing index entries in your lucene index
+            // Merge the missing index entries in your lucene index
             List<IndexEntry> entries = event.getEntries();
-            if(event.getRequest_number() < request_number){
-                ////logger.info(self.getId() + " - RESPONSE to request_number=" + event.getRequest_number()+" discarded. Current request_number="+request_number);
+            if (event.getRequest_number() < request_number) {
+                //Response discarded if it corresponds to a request that is not valid now
+                //A request may not be valid if entries have been added (index propagate) beofre receiving the response
                 return;
             }
             if (entries.isEmpty()) {
-             /*//logger.info(self.getId()
-             + " - RESPONSE. Number of entries received {}", entries.size());*/
-             return;
-             }
-            
+                //If no entries received, return
+                return;
+            }
 
-            ////logger.info(self.getId() + " - RESPONSE to request_number=" + event.getRequest_number()+"  lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
+            //Add entries
             for (IndexEntry e : entries) {
-                /*//logger.info(self.getId()
-                 + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
-                
-                ////logger.info(self.getId() + " - RESPONSE to request_number=" + event.getRequest_number()+" Adding index entry: {} Id={}", e.getText(), e.getIndexId());
-                /*//logger.info(self.getId()
-                 + " - RESPONSE. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);*/
-
                 try {
                     addEntry(e.getText(), e.getIndexId());
                     updateIndexPointers(e.getIndexId());
@@ -691,14 +651,7 @@ public final class Search extends ComponentDefinition {
                     java.util.logging.Logger.getLogger(Search.class.getName()).log(Level.SEVERE, null, ex);
                     throw new IllegalArgumentException(ex.getMessage());
                 }
-          //      //logger.info("$$$$ - " + self.getId() + " - entry added:({})  messageCounter={}  $$$$", e.getText(), messageIndexCounter);
             }
-
-            /*//logger.info(self.getId()
-             + " - UPDATE POINTERS. lastMissingIndexEntry:{}  maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
-            
-             //logger.info(self.getId()
-             + " - RESPONSE. {} entries added to my index from Response of peer:{}", entries.size(), event.getSource().getId());*/
         }
     };
     Handler<CyclonSample> handleCyclonSample = new Handler<CyclonSample>() {
@@ -707,15 +660,6 @@ public final class Search extends ComponentDefinition {
             // receive a new list of neighbours
             neighbours.clear();
             neighbours.addAll(event.getSample());
-
-            /*System.out.println("\nCYCLON SAMPE: numPartitions=" + searchConfiguration.getNumPartitions());
-             System.out.print("Self=" + self.getId() + " CyclonPartners={");
-             for (Address partner : neighbours) {
-             System.out.print(partner.getId() + ",");
-             }
-             System.out.println("}");*/
-
-
             // update routing tables
             for (Address p : neighbours) {
                 int partition = p.getId() % searchConfiguration.getNumPartitions();
@@ -742,8 +686,7 @@ public final class Search extends ComponentDefinition {
         public void handle(AddIndexText event) {
 
             if (leader == null) {
-                //trigger discovery
-             //   //logger.info(self.getId() + " - Simulation add request. LEADER IS NULL. HighestPeer={} text={}", highestRankingNeighbor(neighbours), event.getText());
+                //If the leader is not known, trigger leader discovery using AddEntryInLeaderSImulation function
                 trigger(new AddEntryInLeaderSimulation(self, highestRankingNeighbor(neighbours), event.getText(), self, 0), networkPort);
                 //wait for response
             } else {
@@ -758,8 +701,6 @@ public final class Search extends ComponentDefinition {
                     //Add entry to self index
                     try {
                         addEntry(event.getText(), indexId);
-                       //logger.info(self.getId()
-                       //         + " - Simulation add request. Adding index entry: {} Id={}", event.getText(), indexId);
                         //Update pointers
                         updateIndexPointers(indexId);
                         //Increment indexId
@@ -770,7 +711,6 @@ public final class Search extends ComponentDefinition {
                     }
                 } else {
                     //trigger event to send the add to the leader
-                    //logger.info(self.getId() + " - Simulation add request. LEADER KNOWN. leader={} text={}", leader.getId(), event.getText());
                     trigger(new AddEntryInLeaderSimulation(self, leader, event.getText(), self, 0), networkPort);
                     //wait for response
                 }
@@ -778,16 +718,13 @@ public final class Search extends ComponentDefinition {
 
         }
     };
+    
     Handler<TManSample> handleTManSample = new Handler<TManSample>() {
         @Override
         public void handle(TManSample event) {
             // receive a new list of neighbours
             neighbours.clear();
             neighbours.addAll(event.getSample());
-
-            if (neighbours.size() > 0) {
-                ////logger.info("Search component {} received {} samples from TMan.", self.getId(), neighbours.size());
-            }
 
             // update routing tables
             for (Address p : neighbours) {
@@ -809,40 +746,32 @@ public final class Search extends ComponentDefinition {
             }
         }
     };
+    
+    //Handler for CurrentLeaderEvent from the LeaderSelection component
     Handler<CurrentLeaderEvent> handleCurrentLeaderEvent = new Handler<CurrentLeaderEvent>() {
         @Override
         public void handle(CurrentLeaderEvent event) {
-            //New Leader has been selected
+            //New Leader has been selected. Save the identity of the leader
             leader = event.getLeader();
+            Snapshot.printByllyCounter(self.getId(), event.getLeader().getId(), event.getInstance());
             //logger.info(self.getId()
             //        + " - NEW LEADER has been selected in instance {}. LeaderId: {} ", event.getInstance(), event.getLeader());
 
         }
     };
 
+    //Function for updating the pointers of the index after adding a new entry
     private void updateIndexPointers(int id) {
-        /*if (id == lastMissingIndexEntry) {
-         //Find next lastMissingIndexEntry. The first entry that is missing
-         //logger.info(self.getId()
-         + " - UPDATE POINTERS. lastMissingIndexEntry:{}   maxIndexEntry:{}", lastMissingIndexEntry, maxIndexEntry);
-         int newLastMissingEntry = nextMissingIndexEntry();
-         //logger.info(self.getId()
-         + " - UPDATE POINTERS. id:{}   newLastMissingEntry:{}", id, newLastMissingEntry);
-                
-            
-         }*/
         if (id > maxIndexEntry) {
             maxIndexEntry = id;
         }
         if (id == lastMissingIndexEntry) {
             lastMissingIndexEntry = nextMissingIndexEntry();
         }
-        /*if (id == lastMissingIndexEntry + 1) {
-         lastMissingIndexEntry++;
-         }*/
-         Snapshot.updateTimerSet(id, self.getId(), System.currentTimeMillis());
+        Snapshot.updateTimerSet(id, self.getId(), System.currentTimeMillis());
     }
 
+    //Get the highest ranked node from the list of neigbors
     private Address highestRankingNeighbor(ArrayList<Address> neighbors) {
         Address highest = neighbors.get(0);
         for (Address p : neighbors) {
@@ -853,6 +782,8 @@ public final class Search extends ComponentDefinition {
         return highest;
     }
 
+    //Function to calculate the value of the pointer to the next missing entry after adding an entry
+    //It actually condiers gaps, and adding single entries in a gap
     private int nextMissingIndexEntry() {
         IndexReader reader = null;
         IndexSearcher searcher = null;

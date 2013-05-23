@@ -5,8 +5,8 @@ import se.sics.kompics.p2p.experiment.dsl.SimulationScenario;
 @SuppressWarnings("serial")
 public class Scenario1 extends Scenario {
 
-    static int numberOfPeers = 25;
-    static int numberOfIndexEntries = 10;
+    static int numberOfPeers = 40;
+    static int numberOfIndexEntries = 1;
 
     private static SimulationScenario scenario = new SimulationScenario() {
         {
@@ -36,7 +36,7 @@ public class Scenario1 extends Scenario {
 
             process0.start();
             //process1.startAfterTerminationOf(2000, process0);
-            process2.startAfterTerminationOf(25000, process0);
+            //process2.startAfterTerminationOf(25000, process0);
         }
     };
 
